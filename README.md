@@ -19,6 +19,7 @@ A high-performance, parallel Fibonacci calculator written in Rust. FibRust imple
   - **Zero-Allocation Iterators**: Lazy range generation for memory efficiency.
   - **Optimized Math**: Uses bitwise operations instead of expensive divisions where possible.
   - **Explicit Error Handling**: Validates input size against system limits to prevent crashes on massive inputs.
+- **Interactive TUI**: HTOP-inspired terminal interface with real-time progress tracking and algorithm comparison.
 
 ## 📦 Project Structure
 
@@ -32,11 +33,11 @@ FibRust/
 │   └── fibrust-cli/        # CLI binary
 ```
 
-| Crate            | Description            | Dependencies               |
-| ---------------- | ---------------------- | -------------------------- |
-| `fibrust-core`   | Algorithms & iterators | `ibig`, `rustfft`, `rayon` |
-| `fibrust-server` | HTTP API               | `axum`, `tokio`            |
-| `fibrust-cli`    | Command-line interface | `clap`, `indicatif`        |
+| Crate            | Description            | Dependencies                          |
+| ---------------- | ---------------------- | ------------------------------------- |
+| `fibrust-core`   | Algorithms & iterators | `ibig`, `rustfft`, `rayon`            |
+| `fibrust-server` | HTTP API               | `axum`, `tokio`                       |
+| `fibrust-cli`    | CLI + TUI interface    | `clap`, `indicatif`, `ratatui`, `crossterm` |
 
 ## 📦 Installation
 
@@ -68,7 +69,38 @@ cargo run -p fibrust-cli --release -- range 100 200
 
 # Show detailed analysis
 cargo run -p fibrust-cli --release -- 1000000 --detail
+
+# Launch interactive TUI mode
+cargo run -p fibrust-cli --release -- --tui
 ```
+
+### Interactive TUI Mode
+
+Launch the HTOP-inspired terminal interface for interactive Fibonacci calculations:
+
+```bash
+cargo run -p fibrust-cli --release -- --tui
+```
+
+The TUI provides:
+- **Real-time progress tracking** with progress bar and ETA
+- **Algorithm comparison** with speedup metrics
+- **Result analysis** with digit count and scientific notation
+- **Keyboard navigation** for quick input and algorithm selection
+
+#### TUI Keyboard Shortcuts
+
+| Key            | Action                        |
+| -------------- | ----------------------------- |
+| `q` / `Esc`    | Quit application              |
+| `r` / `Enter`  | Run calculation               |
+| `?` / `F1`     | Toggle help overlay           |
+| `Tab`          | Switch between input fields   |
+| `n`            | Focus n input field           |
+| `a`            | Focus algorithm selector      |
+| `Up` / `Down`  | Navigate algorithm options    |
+| `1-5`          | Direct algorithm selection    |
+| `Backspace`    | Delete last digit             |
 
 ### HTTP Server (`fibrust-server`)
 
@@ -112,6 +144,7 @@ for f_n in FibRange::new(1000, 2000) {
 | `-a, --algorithm <alg>` | `adaptive` (default), `fast-doubling`, `parallel`, `fft`, `all` |
 | `-d, --detail`          | Show detailed result analysis                                   |
 | `-s, --seq`             | Force sequential execution                                      |
+| `--tui`                 | Launch interactive TUI mode                                     |
 | `range <start> <end>`   | Generate F(start)..F(end)                                       |
 
 ## 📊 Benchmarks
@@ -146,9 +179,13 @@ The **Parallel Fast Doubling** and **FFT** algorithms leverage the `rayon` threa
 
 ```bash
 # Run all tests
+cargo test --workspace --release
+
+# Run core library tests
 cargo test -p fibrust-core --release
 
-# Results: 16 property tests + 2 doctests
+# Run CLI and TUI tests
+cargo test -p fibrust-cli --release
 ```
 
 ## 🧠 Algorithms

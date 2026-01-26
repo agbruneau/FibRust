@@ -2,6 +2,9 @@
 //!
 //! A command-line interface for calculating Fibonacci numbers using the `fibrust-core` library.
 //! Supports single number calculation, range generation, and detailed performance analysis.
+//! Includes an interactive TUI mode inspired by HTOP.
+
+use fibrust_cli::tui;
 
 use clap::{Parser, Subcommand, ValueEnum};
 use fibrust_core::{
@@ -57,6 +60,10 @@ struct Cli {
     /// Run sequentially (disable parallelism where applicable).
     #[arg(short, long)]
     seq: bool,
+
+    /// Launch interactive TUI mode (HTOP-inspired interface).
+    #[arg(long)]
+    tui: bool,
 }
 
 /// Available subcommands.
@@ -82,6 +89,11 @@ struct AlgorithmResult {
 
 fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
+
+    // Check for TUI mode first
+    if cli.tui {
+        return tui::run_tui();
+    }
 
     // Pre-warm the system for consistent performance
     fibrust_core::prewarm_system();
