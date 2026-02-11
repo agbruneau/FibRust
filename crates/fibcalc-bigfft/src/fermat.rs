@@ -2,6 +2,9 @@
 //!
 //! Fermat numbers `F_k` = 2^(2^k) + 1 are used as moduli for
 //! Number Theoretic Transform (NTT) based multiplication.
+//!
+//! Add and subtract operate directly on u64 limbs to avoid
+//! heap-allocating BigUint conversions in hot loops.
 
 use num_bigint::BigUint;
 use num_traits::One;
@@ -40,7 +43,6 @@ impl FermatNum {
     /// Convert back to `BigUint`.
     #[must_use]
     pub fn to_biguint(&self) -> BigUint {
-        // Convert u64 limbs to little-endian bytes for reliable conversion
         let bytes: Vec<u8> = self
             .data
             .iter()
@@ -55,7 +57,7 @@ impl FermatNum {
         (BigUint::one() << self.shift) + BigUint::one()
     }
 
-    /// Normalize: reduce mod (2^shift + 1).
+    /// Normalize: reduce mod (2^shift + 1) via BigUint fallback.
     pub fn normalize(&mut self) {
         let modulus = self.modulus();
         let val = self.to_biguint() % &modulus;
@@ -63,25 +65,146 @@ impl FermatNum {
     }
 
     /// Add two Fermat numbers mod (2^shift + 1).
+    /// Uses in-place limb arithmetic instead of BigUint conversion.
     #[must_use]
     pub fn add(&self, other: &Self) -> Self {
         assert_eq!(self.shift, other.shift);
-        let modulus = self.modulus();
-        let a = self.to_biguint();
-        let b = other.to_biguint();
-        let sum = (a + b) % modulus;
-        Self::from_biguint(&sum, self.shift)
+        let n = self.data.len();
+        let mut result = Self {
+            data: vec![0u64; n],
+            shift: self.shift,
+        };
+
+        // Limb-level addition with carry
+        let mut carry = 0u64;
+        for i in 0..n {
+            let a = self.data[i];
+            let b = if i < other.data.len() { other.data[i] } else { 0 };
+            let (sum1, c1) = a.overflowing_add(b);
+            let (sum2, c2) = sum1.overflowing_add(carry);
+            result.data[i] = sum2;
+            carry = u64::from(c1) + u64::from(c2);
+        }
+
+        // If carry or result >= modulus, reduce
+        if carry > 0 || result.ge_modulus() {
+            result.normalize();
+        }
+        result
     }
 
     /// Subtract other from self mod (2^shift + 1).
+    /// Uses in-place limb arithmetic instead of BigUint conversion.
     #[must_use]
     pub fn sub(&self, other: &Self) -> Self {
         assert_eq!(self.shift, other.shift);
-        let modulus = self.modulus();
-        let a = self.to_biguint() % &modulus;
-        let b = other.to_biguint() % &modulus;
-        let result = if a >= b { a - b } else { &modulus - &b + &a };
-        Self::from_biguint(&result, self.shift)
+        let n = self.data.len();
+        let mut result = Self {
+            data: vec![0u64; n],
+            shift: self.shift,
+        };
+
+        // Limb-level subtraction with borrow
+        let mut borrow = 0u64;
+        for i in 0..n {
+            let a = self.data[i];
+            let b = if i < other.data.len() { other.data[i] } else { 0 };
+            let (diff1, b1) = a.overflowing_sub(b);
+            let (diff2, b2) = diff1.overflowing_sub(borrow);
+            result.data[i] = diff2;
+            borrow = u64::from(b1) + u64::from(b2);
+        }
+
+        if borrow > 0 {
+            // Result is negative: add modulus (2^shift + 1)
+            result.add_modulus();
+        }
+
+        result
+    }
+
+    /// Check if self >= modulus (2^shift + 1).
+    fn ge_modulus(&self) -> bool {
+        let limb_idx = self.shift / 64;
+        let bit_idx = self.shift % 64;
+
+        // Check for any bits strictly above position shift
+        for i in (limb_idx + 1)..self.data.len() {
+            if self.data[i] != 0 {
+                return true;
+            }
+        }
+
+        if bit_idx == 0 {
+            // Bit at position shift is in data[limb_idx] bit 0
+            if limb_idx >= self.data.len() {
+                return false;
+            }
+            if self.data[limb_idx] > 1 {
+                return true;
+            }
+            if self.data[limb_idx] == 1 {
+                // Value >= 2^shift. Check if also >= 2^shift + 1
+                for i in 0..limb_idx {
+                    if self.data[i] != 0 {
+                        return true; // >= 2^shift + something
+                    }
+                }
+            }
+            false
+        } else {
+            if limb_idx >= self.data.len() {
+                return false;
+            }
+            // Check if there are bits above bit_idx in this limb
+            let above_mask = !((1u64 << (bit_idx + 1)) - 1);
+            if self.data[limb_idx] & above_mask != 0 {
+                return true;
+            }
+            // Check if bit at shift is set
+            if self.data[limb_idx] & (1u64 << bit_idx) != 0 {
+                // Value >= 2^shift. Check if also >= 2^shift + 1
+                let low_mask = (1u64 << bit_idx) - 1;
+                if self.data[limb_idx] & low_mask != 0 {
+                    return true;
+                }
+                for i in 0..limb_idx {
+                    if self.data[i] != 0 {
+                        return true;
+                    }
+                }
+            }
+            false
+        }
+    }
+
+    /// Add the modulus 2^shift + 1 to self.data.
+    fn add_modulus(&mut self) {
+        // Add 1
+        let mut carry = 1u64;
+        for limb in &mut self.data {
+            let (sum, c) = limb.overflowing_add(carry);
+            *limb = sum;
+            carry = u64::from(c);
+            if carry == 0 {
+                break;
+            }
+        }
+
+        // Add 2^shift
+        let limb_idx = self.shift / 64;
+        let bit_idx = self.shift % 64;
+        if limb_idx < self.data.len() {
+            let (sum, mut c) = self.data[limb_idx].overflowing_add(1u64 << bit_idx);
+            self.data[limb_idx] = sum;
+            let mut i = limb_idx + 1;
+            while c && i < self.data.len() {
+                let (s, c2) = self.data[i].overflowing_add(1);
+                self.data[i] = s;
+                c = c2;
+                i += 1;
+            }
+        }
     }
 
     /// Multiply two Fermat numbers mod (2^shift + 1).
@@ -107,9 +230,6 @@ impl FermatNum {
     }
 
     /// Divide by 2^k mod (2^shift + 1).
-    ///
-    /// Uses the identity: 2^(2*shift) ≡ 1 (mod 2^shift + 1),
-    /// so 2^(-k) ≡ 2^(2*shift - k).
     pub fn shift_right(&mut self, k: usize) {
         if k == 0 {
             return;
@@ -117,7 +237,6 @@ impl FermatNum {
         let two_shift = 2 * self.shift;
         let effective = (two_shift - (k % two_shift)) % two_shift;
         if effective > 0 {
-            // Multiply by 2^effective which equals 2^(-k) mod (2^shift + 1)
             let modulus = self.modulus();
             let val = self.to_biguint();
             let shifted = (val << effective) % modulus;
@@ -133,16 +252,10 @@ impl FermatNum {
 }
 
 /// Select optimal FFT parameters for multiplying two numbers.
-///
-/// Returns `(piece_bits, n, fermat_shift)` where:
-/// - `piece_bits`: number of bits per polynomial piece
-/// - `n`: transform length (power of 2)
-/// - `fermat_shift`: Fermat modulus parameter (`2^fermat_shift` + 1)
 #[must_use]
 pub fn select_fft_params(a_bits: usize, b_bits: usize) -> (usize, usize, usize) {
     let max_bits = a_bits.max(b_bits);
 
-    // Choose piece_bits based on operand size
     let piece_bits = if max_bits < 10_000 {
         64
     } else if max_bits < 100_000 {
@@ -153,16 +266,10 @@ pub fn select_fft_params(a_bits: usize, b_bits: usize) -> (usize, usize, usize) 
         4096
     };
 
-    // Number of pieces for each operand
     let n_a = a_bits.div_ceil(piece_bits);
     let n_b = b_bits.div_ceil(piece_bits);
-
-    // Transform length: power of 2, >= n_a + n_b (avoids aliasing in cyclic convolution)
     let n = (n_a + n_b).max(4).next_power_of_two();
 
-    // Fermat shift must be:
-    // 1. > 2*piece_bits + log2(n) + 1 (so coefficients fit without overflow)
-    // 2. A multiple of n/2 (so 2*fermat_shift/size is integer for all butterfly levels)
     let log_n = (n as f64).log2().ceil() as usize;
     let min_shift = 2 * piece_bits + log_n + 2;
     let half_n = n / 2;
@@ -186,7 +293,6 @@ mod tests {
     fn fermat_modulus() {
         let f = FermatNum::new(64);
         let modulus = f.modulus();
-        // 2^64 + 1
         let expected = (BigUint::one() << 64) + BigUint::one();
         assert_eq!(modulus, expected);
     }
@@ -200,7 +306,6 @@ mod tests {
 
     #[test]
     fn fermat_to_from_large_value() {
-        // Test with a value that spans multiple u64 limbs
         let val = (BigUint::one() << 100) + BigUint::from(42u64);
         let f = FermatNum::from_biguint(&val, 128);
         assert_eq!(f.to_biguint(), val);
@@ -216,7 +321,6 @@ mod tests {
 
     #[test]
     fn fermat_add_wraps() {
-        // Test modular wrap-around: (2^64) + 1 mod (2^64 + 1) = 0
         let _modulus = (BigUint::one() << 64) + BigUint::one();
         let a = FermatNum::from_biguint(&(BigUint::one() << 64), 64);
         let b = FermatNum::from_biguint(&BigUint::one(), 64);
@@ -234,7 +338,6 @@ mod tests {
 
     #[test]
     fn fermat_sub_wraps() {
-        // 100 - 200 mod (2^64 + 1) = modulus - 100
         let modulus = (BigUint::one() << 64) + BigUint::one();
         let a = FermatNum::from_biguint(&BigUint::from(100u64), 64);
         let b = FermatNum::from_biguint(&BigUint::from(200u64), 64);
@@ -260,12 +363,9 @@ mod tests {
 
     #[test]
     fn fermat_shift_left_wraps() {
-        // 2^64 mod (2^64 + 1) = modulus - 1 = 2^64
-        // But 1 << 64 in the Fermat ring: 2^64 ≡ -1 mod (2^64 + 1)
         let modulus = (BigUint::one() << 64) + BigUint::one();
         let mut a = FermatNum::from_biguint(&BigUint::one(), 64);
         a.shift_left(64);
-        // 2^64 mod (2^64 + 1) = 2^64 (which is modulus - 1)
         assert_eq!(a.to_biguint(), &modulus - BigUint::one());
     }
 
@@ -280,7 +380,6 @@ mod tests {
 
     #[test]
     fn fermat_normalize() {
-        // Create a value larger than the modulus
         let modulus = (BigUint::one() << 64) + BigUint::one();
         let val = &modulus + BigUint::from(5u64);
         let mut f = FermatNum::from_biguint(&val, 64);
@@ -294,9 +393,7 @@ mod tests {
         assert!(piece_bits > 0);
         assert!(n > 0);
         assert!(shift > 0);
-        // n must be power of 2
         assert_eq!(n & (n - 1), 0);
-        // shift must be divisible by n/2
         assert_eq!(shift % (n / 2), 0);
     }
 
@@ -305,11 +402,8 @@ mod tests {
         let (piece_bits, n, shift) = select_fft_params(100_000, 100_000);
         assert!(piece_bits > 0);
         assert!(n > 0);
-        // n must be power of 2
         assert_eq!(n & (n - 1), 0);
-        // shift must be divisible by n/2
         assert_eq!(shift % (n / 2), 0);
-        // shift must be large enough for convolution coefficients
         assert!(shift >= 2 * piece_bits + 1);
     }
 }

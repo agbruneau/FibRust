@@ -48,28 +48,13 @@ impl AtomicPoolStats {
     }
 }
 
-/// A wrapper that preserves the underlying Vec capacity when "clearing" a `BigUint`.
+/// Clear a `BigUint` by setting it to zero.
 ///
-/// `BigUint` internally stores a `Vec<u64>` of digits. We use `std::mem::replace`
-/// to swap in a zero value while extracting the old data, then reconstruct
-/// a zero-valued `BigUint` that retains the original allocation capacity.
+/// BigUint::from(0u32) is the simplest approach -- the original "preserve capacity"
+/// implementation didn't actually work since num-bigint doesn't expose its internal Vec.
+/// Just zero it out; the allocation cost is negligible compared to computation.
 fn clear_preserving_capacity(value: &mut BigUint) {
-    // Extract the digits from the BigUint by swapping with zero
-    let digits = std::mem::take(value).to_u64_digits();
-    let capacity = digits.capacity().max(digits.len());
-
-    // Create a zeroed Vec with the same capacity
-    let mut preserved = Vec::with_capacity(capacity);
-    preserved.push(0u64);
-
-    // Reconstruct the BigUint from the preserved-capacity vec
-    *value = BigUint::new(preserved.iter().map(|&d| d as u32).collect());
-
-    // The above creates a new allocation. Instead, let's just set to zero
-    // and rely on the fact that num-bigint will reuse the allocation on
-    // subsequent operations that grow back to a similar size.
-    // The key insight: we store the *capacity hint* as the size class.
-    *value = BigUint::from(0u32);
+    *value = BigUint::ZERO;
 }
 
 /// Pool for `BigUint` objects, organized by size class (power of 4).

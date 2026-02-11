@@ -1,10 +1,11 @@
 //! End-to-end CLI integration tests.
 
+use assert_cmd::cargo_bin_cmd;
 use assert_cmd::Command;
 use predicates::prelude::*;
 
 fn fibcalc() -> Command {
-    Command::cargo_bin("fibcalc").expect("binary not found")
+    cargo_bin_cmd!("fibcalc").into()
 }
 
 #[test]

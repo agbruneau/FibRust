@@ -2,21 +2,22 @@
 
 use crate::matrix_types::Matrix;
 
-/// Multiply two 2x2 matrices using standard algorithm.
+/// Multiply two 2x2 matrices exploiting Fibonacci symmetry (b == c).
+///
+/// All powers of the Fibonacci Q matrix `[[1,1],[1,0]]` are symmetric
+/// (i.e., `b == c`), so we use `multiply_symmetric` which requires
+/// 5 multiplications instead of the standard 8.
 #[must_use]
 pub fn matrix_multiply(a: &Matrix, b: &Matrix) -> Matrix {
-    Matrix {
-        a: &a.a * &b.a + &a.b * &b.c,
-        b: &a.a * &b.b + &a.b * &b.d,
-        c: &a.c * &b.a + &a.d * &b.c,
-        d: &a.c * &b.b + &a.d * &b.d,
-    }
+    a.multiply_symmetric(b)
 }
 
-/// Square a 2x2 matrix.
+/// Square a 2x2 matrix exploiting Fibonacci symmetry (b == c).
+///
+/// Uses `square_symmetric` which requires 3 multiplications instead of 8.
 #[must_use]
 pub fn matrix_square(m: &Matrix) -> Matrix {
-    matrix_multiply(m, m)
+    m.square_symmetric()
 }
 
 /// Multiply two 2x2 matrices using Strassen-like optimization.

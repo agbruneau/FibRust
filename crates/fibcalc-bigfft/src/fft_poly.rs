@@ -18,19 +18,40 @@ pub struct Poly {
 impl Poly {
     /// Create a polynomial from a `BigUint` by splitting into pieces of `piece_bits` bits.
     ///
+    /// Extracts limbs directly from the u64 digit representation to avoid
+    /// repeated cloning and shifting of the full BigUint.
+    ///
     /// - `n`: number of coefficients (padded with zeros)
     /// - `piece_bits`: bits per piece
     /// - `fermat_shift`: Fermat modulus parameter for the NTT
     #[must_use]
     pub fn from_biguint(value: &BigUint, n: usize, piece_bits: usize, fermat_shift: usize) -> Self {
-        let mask = (BigUint::one() << piece_bits) - BigUint::one();
+        let digits = value.to_u64_digits();
+        let num_limbs_per_piece = piece_bits.div_ceil(64);
         let mut coeffs = Vec::with_capacity(n);
-        let mut remaining = value.clone();
 
-        for _ in 0..n {
-            let piece = &remaining & &mask;
-            remaining >>= piece_bits;
-            coeffs.push(FermatNum::from_biguint(&piece, fermat_shift));
+        if piece_bits % 64 == 0 {
+            // Fast path: pieces align on u64 boundaries, direct slice copy
+            for i in 0..n {
+                let start_limb = i * num_limbs_per_piece;
+                let fermat_limbs = fermat_shift.div_ceil(64) + 1;
+                let mut data = vec![0u64; fermat_limbs];
+                let copy_end = (start_limb + num_limbs_per_piece).min(digits.len());
+                if start_limb < digits.len() {
+                    let copy_len = (copy_end - start_limb).min(fermat_limbs);
+                    data[..copy_len].copy_from_slice(&digits[start_limb..start_limb + copy_len]);
+                }
+                coeffs.push(FermatNum { data, shift: fermat_shift });
+            }
+        } else {
+            // General path: extract arbitrary bit-aligned pieces
+            let mask = (BigUint::one() << piece_bits) - BigUint::one();
+            let mut remaining = value.clone();
+            for _ in 0..n {
+                let piece = &remaining & &mask;
+                remaining >>= piece_bits;
+                coeffs.push(FermatNum::from_biguint(&piece, fermat_shift));
+            }
         }
 
         Self {

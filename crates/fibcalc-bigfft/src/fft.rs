@@ -94,14 +94,17 @@ fn fft_square(a: &BigUint) -> BigUint {
     // Forward NTT (only once for squaring)
     fft_forward(&mut coeffs, fermat_shift);
 
-    // Pointwise square (reuse same transform)
-    let mut result_coeffs: Vec<_> = coeffs.iter().map(|c| c.fermat_mul(c)).collect();
+    // Pointwise square in-place (reuse same transform, no new allocation)
+    for i in 0..coeffs.len() {
+        let squared = coeffs[i].fermat_mul(&coeffs[i]);
+        coeffs[i] = squared;
+    }
 
     // Inverse NTT
-    fft_inverse(&mut result_coeffs, fermat_shift);
+    fft_inverse(&mut coeffs, fermat_shift);
 
     // Reassemble
-    reassemble(&result_coeffs, piece_bits)
+    reassemble(&coeffs, piece_bits)
 }
 
 /// Direct FFT multiply (always uses FFT, for testing purposes).

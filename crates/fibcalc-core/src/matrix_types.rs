@@ -42,6 +42,46 @@ impl Matrix {
             && self.c == BigUint::ZERO
             && self.d == BigUint::from(1u32)
     }
+
+    /// Optimized squaring for symmetric matrices (where b == c).
+    ///
+    /// For `[[a,b],[b,d]]`, the square is:
+    /// `[[a*a + b*b, b*(a+d)], [b*(a+d), b*b + d*d]]`
+    ///
+    /// This requires 3 multiplications + 2 additions instead of the
+    /// 8 multiplications + 4 additions of standard 2x2 matrix squaring.
+    #[must_use]
+    pub fn square_symmetric(&self) -> Self {
+        let b_sq = &self.b * &self.b;
+        let new_a = &self.a * &self.a + &b_sq;
+        let new_b = &self.b * (&self.a + &self.d);
+        let new_d = &b_sq + &self.d * &self.d;
+        Self {
+            a: new_a,
+            b: new_b.clone(),
+            c: new_b,
+            d: new_d,
+        }
+    }
+
+    /// Optimized multiplication for symmetric Fibonacci matrices.
+    ///
+    /// For symmetric `A=[[a1,b1],[b1,d1]]` and `B=[[a2,b2],[b2,d2]]`:
+    /// The result is also symmetric, requiring 5 multiplications + 2 additions
+    /// instead of the 8 multiplications + 4 additions of standard multiply.
+    #[must_use]
+    pub fn multiply_symmetric(&self, other: &Self) -> Self {
+        let b1_b2 = &self.b * &other.b;
+        let new_a = &self.a * &other.a + &b1_b2;
+        let new_b = &self.a * &other.b + &self.b * &other.d;
+        let new_d = &b1_b2 + &self.d * &other.d;
+        Self {
+            a: new_a,
+            b: new_b.clone(),
+            c: new_b,
+            d: new_d,
+        }
+    }
 }
 
 /// State for matrix exponentiation computation.

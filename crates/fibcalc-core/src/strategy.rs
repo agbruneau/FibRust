@@ -62,14 +62,11 @@ impl Multiplier for KaratsubaStrategy {
 
 impl DoublingStepExecutor for KaratsubaStrategy {
     fn execute_doubling_step(&self, fk: &BigUint, fk1: &BigUint) -> (BigUint, BigUint) {
-        let fk_sq = self.square(fk);
-        let fk1_sq = self.square(fk1);
-        let cross = self.multiply(fk, fk1);
-
-        // F(2k) = 2*F(k)*F(k+1) - F(k)^2
-        let f2k = (&cross << 1) - &fk_sq;
-        // F(2k+1) = F(k+1)^2 + F(k)^2
-        let f2k1 = fk1_sq + fk_sq;
+        // F(2k) = F(k) * (2*F(k+1) - F(k))  — 1 multiply
+        let t = (fk1 << 1u32) - fk;
+        let f2k = self.multiply(fk, &t);
+        // F(2k+1) = F(k)^2 + F(k+1)^2       — 2 squarings
+        let f2k1 = self.square(fk) + self.square(fk1);
 
         (f2k, f2k1)
     }
@@ -105,27 +102,25 @@ impl Multiplier for ParallelKaratsubaStrategy {
 
 impl DoublingStepExecutor for ParallelKaratsubaStrategy {
     fn execute_doubling_step(&self, fk: &BigUint, fk1: &BigUint) -> (BigUint, BigUint) {
+        // F(2k) = F(k) * (2*F(k+1) - F(k))  — 1 multiply
+        // F(2k+1) = F(k)^2 + F(k+1)^2       — 2 squarings
+        let t = (fk1 << 1u32) - fk;
         let max_bits = fk.bits().max(fk1.bits()) as usize;
 
-        let (fk_sq, fk1_sq, cross) = if max_bits >= self.parallel_threshold {
-            // Parallel: use rayon::join for the 3 independent multiplications
-            let ((fk_sq, fk1_sq), cross) =
-                rayon::join(|| rayon::join(|| fk * fk, || fk1 * fk1), || fk * fk1);
-            (fk_sq, fk1_sq, cross)
+        if max_bits >= self.parallel_threshold {
+            // Parallel: multiply and 2 squarings concurrently
+            let ((fk_sq, fk1_sq), f2k) = rayon::join(
+                || rayon::join(|| fk * fk, || fk1 * fk1),
+                || fk * &t,
+            );
+            let f2k1 = fk_sq + fk1_sq;
+            (f2k, f2k1)
         } else {
             // Sequential for small operands
-            let fk_sq = fk * fk;
-            let fk1_sq = fk1 * fk1;
-            let cross = fk * fk1;
-            (fk_sq, fk1_sq, cross)
-        };
-
-        // F(2k) = 2*F(k)*F(k+1) - F(k)^2
-        let f2k = (&cross << 1) - &fk_sq;
-        // F(2k+1) = F(k+1)^2 + F(k)^2
-        let f2k1 = fk1_sq + fk_sq;
-
-        (f2k, f2k1)
+            let f2k = self.multiply(fk, &t);
+            let f2k1 = self.square(fk) + self.square(fk1);
+            (f2k, f2k1)
+        }
     }
 }
 
@@ -161,14 +156,11 @@ impl Multiplier for FFTOnlyStrategy {
 
 impl DoublingStepExecutor for FFTOnlyStrategy {
     fn execute_doubling_step(&self, fk: &BigUint, fk1: &BigUint) -> (BigUint, BigUint) {
-        let fk_sq = self.square(fk);
-        let fk1_sq = self.square(fk1);
-        let cross = self.multiply(fk, fk1);
-
-        // F(2k) = 2*F(k)*F(k+1) - F(k)^2
-        let f2k = (&cross << 1) - &fk_sq;
-        // F(2k+1) = F(k+1)^2 + F(k)^2
-        let f2k1 = fk1_sq + fk_sq;
+        // F(2k) = F(k) * (2*F(k+1) - F(k))  — 1 multiply
+        let t = (fk1 << 1u32) - fk;
+        let f2k = self.multiply(fk, &t);
+        // F(2k+1) = F(k)^2 + F(k+1)^2       — 2 squarings
+        let f2k1 = self.square(fk) + self.square(fk1);
 
         (f2k, f2k1)
     }
@@ -221,14 +213,11 @@ impl Multiplier for AdaptiveStrategy {
 
 impl DoublingStepExecutor for AdaptiveStrategy {
     fn execute_doubling_step(&self, fk: &BigUint, fk1: &BigUint) -> (BigUint, BigUint) {
-        let fk_sq = self.square(fk);
-        let fk1_sq = self.square(fk1);
-        let cross = self.multiply(fk, fk1);
-
-        // F(2k) = 2*F(k)*F(k+1) - F(k)^2
-        let f2k = (&cross << 1) - &fk_sq;
-        // F(2k+1) = F(k+1)^2 + F(k)^2
-        let f2k1 = fk1_sq + fk_sq;
+        // F(2k) = F(k) * (2*F(k+1) - F(k))  — 1 multiply
+        let t = (fk1 << 1u32) - fk;
+        let f2k = self.multiply(fk, &t);
+        // F(2k+1) = F(k)^2 + F(k+1)^2       — 2 squarings
+        let f2k1 = self.square(fk) + self.square(fk1);
 
         (f2k, f2k1)
     }
