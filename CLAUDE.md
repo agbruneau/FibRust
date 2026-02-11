@@ -31,7 +31,7 @@ cargo fuzz run fuzz_fast_doubling -- -max_total_time=30  # Fuzz testing
 
 ## Architecture
 
-Rust 2024 edition, MSRV 1.80+. Four-layer architecture:
+Rust 2021 edition, MSRV 1.80+. Four-layer architecture:
 
 ```
 Entry point (src/main.rs)

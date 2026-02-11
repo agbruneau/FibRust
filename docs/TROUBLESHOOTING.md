@@ -20,7 +20,7 @@ This document covers common issues when building, running, and testing FibCalc-r
 
 **Problem:** Compilation fails with syntax errors or unknown feature messages.
 
-**Cause:** FibCalc-rs requires Rust 1.80 or later (Rust 2024 edition).
+**Cause:** FibCalc-rs requires Rust 1.80 or later (Rust 2021 edition).
 
 **Solution:**
 

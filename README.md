@@ -1,6 +1,42 @@
 # FibCalc-rs
 
-High-performance Fibonacci calculator written in Rust. Computes arbitrarily large Fibonacci numbers using three algorithms with automatic cross-validation. Ported from [FibGo](https://github.com/agbruneau/Fibonacci).
+![License](https://img.shields.io/badge/license-Apache--2.0-blue)
+![MSRV](https://img.shields.io/badge/MSRV-1.80%2B-orange)
+![Tests](https://img.shields.io/badge/tests-680%2B-brightgreen)
+![Coverage](https://img.shields.io/badge/coverage-96.1%25-brightgreen)
+
+High-performance Fibonacci calculator written in Rust. Computes arbitrarily large Fibonacci numbers using three algorithms with automatic cross-validation. Ported from [FibGo](https://github.com/agbruneau/Fibonacci) (Go).
+
+## Table of Contents
+
+- [Academic Context](#academic-context)
+- [Features](#features)
+- [Quick Start](#quick-start)
+- [Performance](#performance)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Architecture](#architecture)
+- [Project Structure](#project-structure)
+- [Design Patterns](#design-patterns)
+- [Algorithms](#algorithms)
+- [Testing](#testing)
+- [Code Quality](#code-quality)
+- [Configuration](#configuration)
+- [Documentation](#documentation)
+- [Development](#development)
+- [References](#references)
+- [License](#license)
+
+## Academic Context
+
+This project is a port of [FibGo](https://github.com/agbruneau/Fibonacci) (Go) to Rust, designed to demonstrate the exploitation of Rust's type system and performance guarantees for high-performance numerical computing. The port showcases:
+
+- **Ownership and borrowing** for zero-copy result passing and arena-based FFT allocation
+- **Trait-based polymorphism** with static dispatch (`impl Trait`) and dynamic dispatch (`dyn Trait`) for algorithm selection
+- **Zero-cost abstractions** via generics, iterators, and inlining that produce optimal machine code
+- **Fearless concurrency** with `rayon` for data parallelism and `crossbeam` channels for communication, without data races
+
+The complete specification is documented in [docs/PRD.md](docs/PRD.md) (~9,500 lines, 78 tasks across 7 phases).
 
 ## Features
 
@@ -10,6 +46,7 @@ High-performance Fibonacci calculator written in Rust. Computes arbitrarily larg
 - **Auto-calibration**: Adaptive threshold tuning based on your hardware
 - **Massive scale**: Compute F(100,000,000)+ with configurable memory limits and timeouts
 - **Optional GMP support**: Link against libgmp via the `rug` crate for even faster arithmetic
+- **Shell completion**: Generated for bash, zsh, fish, PowerShell, and elvish
 
 ## Quick Start
 
@@ -97,7 +134,7 @@ fibcalc -n 100000000 --memory-limit 4G --timeout 10m
 
 ## Architecture
 
-Cargo workspace with 7 crates in a four-layer architecture:
+Cargo workspace with 7 crates in a four-layer architecture (Rust 2021 edition):
 
 ```
 fibcalc (binary)              -- entry point, config, error handling
@@ -120,6 +157,40 @@ fibcalc-calibration            -- auto-tuning, adaptive benchmarks
 | `fibcalc-tui` | Interactive TUI dashboard (ratatui + crossterm) |
 | `fibcalc-calibration` | Auto-tuning, adaptive benchmarks, calibration profiles |
 
+## Project Structure
+
+```
+FibRust/
+├── Cargo.toml                  # Workspace root
+├── crates/
+│   ├── fibcalc/                # Binary entry point (4 modules, ~500 lines)
+│   ├── fibcalc-core/           # Core algorithms (26 modules, ~2,600 lines)
+│   ├── fibcalc-bigfft/         # FFT multiplication (14 modules, ~1,300 lines)
+│   ├── fibcalc-orchestration/  # Parallel execution (4 modules, ~540 lines)
+│   ├── fibcalc-cli/            # CLI output (6 modules, ~600 lines)
+│   ├── fibcalc-tui/            # TUI dashboard (12 modules, ~3,700 lines)
+│   └── fibcalc-calibration/    # Auto-tuning (7 modules, ~600 lines)
+├── tests/
+│   ├── testdata/               # Golden test data (fibonacci_golden.json)
+│   └── golden.rs               # Workspace-level golden tests
+├── fuzz/                       # Fuzz targets (cargo-fuzz)
+├── docs/                       # Technical documentation (10 files)
+└── .cargo/config.toml          # Build configuration (LTO, native CPU)
+```
+
+## Design Patterns
+
+The project implements several GoF and systems patterns mapped from Go idioms to Rust:
+
+| Pattern | Implementation | Location |
+|---------|---------------|----------|
+| **Decorator** | `FibCalculator` wraps `CoreCalculator`, adds fast path (n <= 93) and progress reporting | `fibcalc-core/src/calculator.rs` |
+| **Factory + Registry** | `DefaultFactory` with lazy creation and `RwLock<HashMap>` cache | `fibcalc-core/src/registry.rs` |
+| **Strategy + ISP** | `Multiplier` (narrow, 2 methods) and `DoublingStepExecutor` (broad, optimized steps) | `fibcalc-core/src/strategy.rs` |
+| **Observer** | `ProgressSubject`/`ProgressObserver` with lock-free `Freeze()` snapshots for hot loops | `fibcalc-core/src/observer.rs` |
+| **Arena** | `bumpalo::Bump` allocator for FFT temporaries, avoiding per-allocation overhead | `fibcalc-bigfft/src/bump.rs` |
+| **Zero-copy** | `std::mem::take` / `std::mem::replace` for result return without cloning | `fibcalc-core/src/fast_doubling.rs` |
+
 ## Algorithms
 
 ### Fast Doubling
@@ -137,11 +208,11 @@ Fast Doubling with FFT-accelerated big-number multiplication using Fermat Number
 ## Testing
 
 ```bash
-cargo test                          # All tests (680+ tests)
-cargo test --lib                    # Unit tests only
-cargo test --test golden            # Golden file tests
-cargo test --test e2e               # End-to-end tests
-cargo test -p fibcalc-core          # Tests for a specific crate
+cargo test --workspace               # All tests (680+)
+cargo test --lib                      # Unit tests only
+cargo test --test golden              # Golden file tests
+cargo test --test e2e                 # End-to-end tests
+cargo test -p fibcalc-core            # Tests for a specific crate
 ```
 
 ### Test Coverage
@@ -159,14 +230,56 @@ cargo test -p fibcalc-core          # Tests for a specific crate
 | `fibcalc-cli` | 48 | 95-100% |
 | **Workspace golden** | 17 | -- |
 
-Coverage includes unit tests, property-based tests (proptest), golden file tests, and end-to-end CLI tests.
+### Test Types
+
+- **Unit tests**: 625+ inline tests across all modules
+- **Integration tests**: Golden file validation against known Fibonacci values (F(0) to F(1,000,000))
+- **End-to-end tests**: 23 CLI tests via `assert_cmd` (all modes, error handling)
+- **Property-based tests**: `proptest` for algorithm agreement and recurrence verification
+- **Fuzz testing**: `cargo-fuzz` target for Fast Doubling
+- **Benchmarks**: `criterion` suite for all 3 algorithms at multiple input sizes
 
 ```bash
-# Measure coverage (requires cargo-llvm-cov)
+# Measure coverage
 cargo install cargo-llvm-cov
 cargo llvm-cov --workspace          # Text report
 cargo llvm-cov --workspace --html   # HTML report in target/llvm-cov/html/
 ```
+
+## Code Quality
+
+| Tool | Purpose | Command |
+|------|---------|---------|
+| `cargo clippy` | Linting with `pedantic` level | `cargo clippy -- -W clippy::pedantic` |
+| `cargo fmt` | Formatting enforcement | `cargo fmt --check` |
+| `cargo audit` | Security vulnerability detection | `cargo audit` |
+| `cargo deny` | License compatibility via `deny.toml` | `cargo deny check` |
+| `cargo fuzz` | Fuzz testing for edge cases | `cargo fuzz run fuzz_fast_doubling` |
+| `cargo geiger` | Unsafe code audit (target: <= 5 blocks) | `cargo geiger` |
+
+## Configuration
+
+Configuration precedence: CLI flags > Environment variables (`FIBCALC_*`) > Adaptive calibration > Static defaults.
+
+Default thresholds:
+- Parallel multiplication: 4,096 bits
+- FFT multiplication: 500,000 bits
+- Strassen multiplication: 3,072 bits
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Four-layer architecture, trait hierarchy, crate dependencies |
+| [ALGORITHMS.md](docs/ALGORITHMS.md) | Mathematical foundations, proofs, complexity analysis |
+| [PERFORMANCE.md](docs/PERFORMANCE.md) | Benchmarks, calibration system, profiling, optimization flags |
+| [API_REFERENCE.md](docs/API_REFERENCE.md) | Public API for all 7 crates, traits, error types, CLI flags |
+| [CONTRIBUTING.md](docs/CONTRIBUTING.md) | Dev setup, code style, testing, PR process |
+| [CROSS_COMPILATION.md](docs/CROSS_COMPILATION.md) | 5 target triples, per-platform build instructions |
+| [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Build, runtime, TUI, and platform-specific issues |
+| [SECURITY.md](docs/SECURITY.md) | Vulnerability reporting, unsafe policy, supply chain security |
+| [CHANGELOG.md](docs/CHANGELOG.md) | Release history (Keep a Changelog format) |
+| [PRD.md](docs/PRD.md) | Complete specification (78 tasks, 7 phases, ~9,500 lines) |
 
 ## Development
 
@@ -179,14 +292,13 @@ cargo audit                          # Security audit
 cargo deny check                     # License compatibility
 ```
 
-## Configuration
+## References
 
-Configuration precedence: CLI flags > Environment variables (`FIBCALC_*`) > Adaptive calibration > Static defaults.
-
-Default thresholds:
-- Parallel multiplication: 4,096 bits
-- FFT multiplication: 500,000 bits
-- Strassen multiplication: 3,072 bits
+- **Original Go implementation**: [FibGo](https://github.com/agbruneau/Fibonacci) by agbruneau
+- **Fast Doubling algorithm**: Karatsuba, A. & Ofman, Y. (1963). "Multiplication of multidigit numbers on automata." *Soviet Physics Doklady*, 7, 595-596.
+- **Matrix Exponentiation**: Knuth, D. E. (1997). *The Art of Computer Programming, Volume 2: Seminumerical Algorithms* (3rd ed.). Addison-Wesley.
+- **Fermat Number Transform**: Crandall, R. & Fagin, B. (1994). "Discrete weighted transforms and large-integer arithmetic." *Mathematics of Computation*, 62(205), 305-324.
+- **Rust language**: [The Rust Programming Language](https://doc.rust-lang.org/book/)
 
 ## License
 
