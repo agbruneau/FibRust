@@ -128,4 +128,122 @@ mod tests {
         subject.clear();
         assert_eq!(subject.count(), 0);
     }
+
+    #[test]
+    fn frozen_observer_initial_progress_is_zero() {
+        let frozen = FrozenObserver::new(0.05);
+        assert!((frozen.current() - 0.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn frozen_observer_update_and_current() {
+        let frozen = FrozenObserver::new(0.01);
+        frozen.update(0.5);
+        assert!((frozen.current() - 0.5).abs() < f64::EPSILON);
+        frozen.update(0.75);
+        assert!((frozen.current() - 0.75).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn frozen_observer_should_report_exact_threshold() {
+        let frozen = FrozenObserver::new(0.1);
+        // Exactly at threshold boundary
+        assert!(frozen.should_report(0.1));
+        frozen.update(0.1);
+        assert!(!frozen.should_report(0.15));
+        assert!(frozen.should_report(0.2));
+    }
+
+    #[test]
+    fn frozen_observer_zero_threshold_always_reports() {
+        let frozen = FrozenObserver::new(0.0);
+        assert!(frozen.should_report(0.0));
+        frozen.update(0.0);
+        assert!(frozen.should_report(0.001));
+    }
+
+    #[test]
+    fn subject_register_increases_count() {
+        use crate::observers::NoOpObserver;
+
+        let subject = ProgressSubject::new();
+        assert_eq!(subject.count(), 0);
+
+        subject.register(Arc::new(NoOpObserver::new()));
+        assert_eq!(subject.count(), 1);
+
+        subject.register(Arc::new(NoOpObserver::new()));
+        assert_eq!(subject.count(), 2);
+    }
+
+    #[test]
+    fn subject_clear_removes_all() {
+        use crate::observers::NoOpObserver;
+
+        let subject = ProgressSubject::new();
+        subject.register(Arc::new(NoOpObserver::new()));
+        subject.register(Arc::new(NoOpObserver::new()));
+        assert_eq!(subject.count(), 2);
+
+        subject.clear();
+        assert_eq!(subject.count(), 0);
+    }
+
+    #[test]
+    fn subject_notify_calls_all_observers() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        struct CountingObserver {
+            count: AtomicUsize,
+        }
+
+        impl CountingObserver {
+            fn new() -> Self {
+                Self {
+                    count: AtomicUsize::new(0),
+                }
+            }
+        }
+
+        impl ProgressObserver for CountingObserver {
+            fn on_progress(&self, _update: &ProgressUpdate) {
+                self.count.fetch_add(1, Ordering::Relaxed);
+            }
+
+            fn freeze(&self) -> FrozenObserver {
+                FrozenObserver::new(PROGRESS_REPORT_THRESHOLD)
+            }
+        }
+
+        let subject = ProgressSubject::new();
+        let obs1 = Arc::new(CountingObserver::new());
+        let obs2 = Arc::new(CountingObserver::new());
+
+        subject.register(obs1.clone());
+        subject.register(obs2.clone());
+
+        let update = ProgressUpdate::new(0, "test", 0.5, 1, 2);
+        subject.notify(&update);
+
+        assert_eq!(obs1.count.load(Ordering::Relaxed), 1);
+        assert_eq!(obs2.count.load(Ordering::Relaxed), 1);
+
+        // Notify again
+        subject.notify(&update);
+        assert_eq!(obs1.count.load(Ordering::Relaxed), 2);
+        assert_eq!(obs2.count.load(Ordering::Relaxed), 2);
+    }
+
+    #[test]
+    fn subject_notify_empty_does_not_panic() {
+        let subject = ProgressSubject::new();
+        let update = ProgressUpdate::new(0, "test", 0.5, 1, 2);
+        subject.notify(&update); // Should not panic
+    }
+
+    #[test]
+    fn subject_default() {
+        let subject = ProgressSubject::default();
+        assert_eq!(subject.count(), 0);
+    }
 }

@@ -273,4 +273,154 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    fn braille_lines_zero_width() {
+        let lines = braille_lines(&[1.0, 2.0], 0, 5);
+        assert!(lines.is_empty());
+    }
+
+    #[test]
+    fn braille_lines_zero_height() {
+        let lines = braille_lines(&[1.0, 2.0], 10, 0);
+        assert!(lines.is_empty());
+    }
+
+    #[test]
+    fn braille_lines_negative_values() {
+        let data = vec![-5.0, -3.0, -1.0, 0.0, 1.0, 3.0, 5.0];
+        let lines = braille_lines(&data, 4, 3);
+        assert_eq!(lines.len(), 3);
+    }
+
+    #[test]
+    fn braille_lines_large_dataset() {
+        let data: Vec<f64> = (0..1000).map(|i| (i as f64).sin() * 100.0).collect();
+        let lines = braille_lines(&data, 40, 10);
+        assert_eq!(lines.len(), 10);
+        for line in &lines {
+            let text: String = line.spans.iter().map(|s| s.content.as_ref()).collect();
+            assert_eq!(text.chars().count(), 40);
+        }
+    }
+
+    // --- render function tests ---
+
+    use ratatui::backend::TestBackend;
+    use ratatui::Terminal;
+
+    #[test]
+    fn render_sparkline_does_not_panic() {
+        let backend = TestBackend::new(40, 8);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let data = vec![1.0, 2.0, 3.0, 4.0, 5.0];
+        terminal
+            .draw(|frame| {
+                let area = frame.area();
+                render_sparkline(frame, area, &data, "Throughput");
+            })
+            .unwrap();
+    }
+
+    #[test]
+    fn render_sparkline_empty_data() {
+        let backend = TestBackend::new(40, 8);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal
+            .draw(|frame| {
+                let area = frame.area();
+                render_sparkline(frame, area, &[], "Empty");
+            })
+            .unwrap();
+    }
+
+    #[test]
+    fn render_braille_sparkline_does_not_panic() {
+        let backend = TestBackend::new(40, 8);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let data = vec![1.0, 2.0, 3.0, 4.0, 5.0];
+        terminal
+            .draw(|frame| {
+                let area = frame.area();
+                render_braille_sparkline(frame, area, &data, "Braille");
+            })
+            .unwrap();
+    }
+
+    #[test]
+    fn render_braille_sparkline_empty_data() {
+        let backend = TestBackend::new(40, 8);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal
+            .draw(|frame| {
+                let area = frame.area();
+                render_braille_sparkline(frame, area, &[], "Empty");
+            })
+            .unwrap();
+    }
+
+    #[test]
+    fn render_braille_sparkline_too_small_falls_back() {
+        // Area height < 3, should fall back to standard sparkline
+        let backend = TestBackend::new(10, 2);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let data = vec![1.0, 2.0, 3.0];
+        terminal
+            .draw(|frame| {
+                let area = frame.area();
+                render_braille_sparkline(frame, area, &data, "Small");
+            })
+            .unwrap();
+    }
+
+    #[test]
+    fn render_braille_sparkline_too_narrow_falls_back() {
+        // Area width < 4, should fall back
+        let backend = TestBackend::new(3, 8);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let data = vec![1.0, 2.0, 3.0];
+        terminal
+            .draw(|frame| {
+                let area = frame.area();
+                render_braille_sparkline(frame, area, &data, "Narrow");
+            })
+            .unwrap();
+    }
+
+    #[test]
+    fn render_braille_sparkline_large_data() {
+        let backend = TestBackend::new(60, 12);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let data: Vec<f64> = (0..100).map(|i| (i as f64 * 0.1).sin() * 50.0 + 50.0).collect();
+        terminal
+            .draw(|frame| {
+                let area = frame.area();
+                render_braille_sparkline(frame, area, &data, "Large");
+            })
+            .unwrap();
+    }
+
+    #[test]
+    fn sparkline_buffer_push_at_capacity() {
+        let mut buf = SparklineBuffer::new(3);
+        buf.push(1.0);
+        buf.push(2.0);
+        buf.push(3.0);
+        assert_eq!(buf.len(), 3);
+        buf.push(4.0); // should evict first
+        assert_eq!(buf.len(), 3);
+        assert_eq!(buf.data()[0], 200); // 2.0 * 100
+        assert_eq!(buf.data()[2], 400); // 4.0 * 100
+    }
+
+    #[test]
+    fn sparkline_buffer_capacity_one() {
+        let mut buf = SparklineBuffer::new(1);
+        buf.push(1.0);
+        assert_eq!(buf.len(), 1);
+        assert_eq!(buf.data()[0], 100);
+        buf.push(2.0);
+        assert_eq!(buf.len(), 1);
+        assert_eq!(buf.data()[0], 200);
+    }
 }

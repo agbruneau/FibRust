@@ -229,4 +229,143 @@ mod tests {
         assert_eq!(state.offset, 29);
         assert!(state.auto_scroll);
     }
+
+    #[test]
+    fn default_equals_new() {
+        let state = LogScrollState::default();
+        assert_eq!(state.offset, 0);
+        assert!(state.auto_scroll);
+    }
+
+    #[test]
+    fn on_new_message_no_auto_scroll() {
+        let mut state = LogScrollState::new();
+        state.auto_scroll = false;
+        state.offset = 5;
+        state.on_new_message(20);
+        // Should not change offset when auto_scroll is off
+        assert_eq!(state.offset, 5);
+    }
+
+    #[test]
+    fn scroll_down_already_at_end() {
+        let mut state = LogScrollState::new();
+        state.auto_scroll = false;
+        state.offset = 9;
+        state.scroll_down(10);
+        assert_eq!(state.offset, 9);
+        assert!(state.auto_scroll);
+    }
+
+    #[test]
+    fn end_with_zero_logs() {
+        let mut state = LogScrollState::new();
+        state.end(0);
+        assert_eq!(state.offset, 0);
+        assert!(state.auto_scroll);
+    }
+
+    #[test]
+    fn page_down_with_zero_logs() {
+        let mut state = LogScrollState::new();
+        state.page_down(10, 0);
+        assert_eq!(state.offset, 0);
+        assert!(state.auto_scroll);
+    }
+
+    // --- render_logs tests ---
+
+    use ratatui::backend::TestBackend;
+    use ratatui::Terminal;
+
+    fn render_logs_in_test_terminal(logs: &[String], scroll_offset: usize) {
+        let backend = TestBackend::new(60, 15);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal
+            .draw(|frame| {
+                let area = frame.area();
+                render_logs(frame, area, logs, scroll_offset);
+            })
+            .unwrap();
+    }
+
+    #[test]
+    fn render_logs_empty() {
+        render_logs_in_test_terminal(&[], 0);
+    }
+
+    #[test]
+    fn render_logs_single_entry() {
+        let logs = vec!["Hello world".to_string()];
+        render_logs_in_test_terminal(&logs, 0);
+    }
+
+    #[test]
+    fn render_logs_multiple_entries() {
+        let logs: Vec<String> = (0..10).map(|i| format!("Log entry {i}")).collect();
+        render_logs_in_test_terminal(&logs, 0);
+    }
+
+    #[test]
+    fn render_logs_with_scroll_offset() {
+        let logs: Vec<String> = (0..20).map(|i| format!("Log entry {i}")).collect();
+        render_logs_in_test_terminal(&logs, 5);
+    }
+
+    #[test]
+    fn render_logs_scroll_offset_clamped() {
+        let logs: Vec<String> = (0..5).map(|i| format!("Log entry {i}")).collect();
+        // Offset larger than logs should be clamped
+        render_logs_in_test_terminal(&logs, 100);
+    }
+
+    #[test]
+    fn render_logs_with_error_styling() {
+        let logs = vec![
+            "[ERROR] something went wrong".to_string(),
+            "Normal log".to_string(),
+            "[WARN] watch out".to_string(),
+        ];
+        render_logs_in_test_terminal(&logs, 0);
+    }
+
+    #[test]
+    fn render_logs_shows_percentage_when_scrollable() {
+        let logs: Vec<String> = (0..50).map(|i| format!("Log entry {i}")).collect();
+        let backend = TestBackend::new(60, 10);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let buf = terminal
+            .draw(|frame| {
+                let area = frame.area();
+                render_logs(frame, area, &logs, 0);
+            })
+            .unwrap();
+
+        // Check border/title row for "Logs (0%)"
+        let title_row: String = (0..buf.area.width)
+            .map(|x| buf.buffer[(x, 0)].symbol().to_string())
+            .collect();
+        assert!(title_row.contains("Logs"));
+        assert!(title_row.contains("%"));
+    }
+
+    #[test]
+    fn render_logs_no_percentage_when_not_scrollable() {
+        // Few logs that fit in the view
+        let logs = vec!["Short log".to_string()];
+        let backend = TestBackend::new(60, 10);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let buf = terminal
+            .draw(|frame| {
+                let area = frame.area();
+                render_logs(frame, area, &logs, 0);
+            })
+            .unwrap();
+
+        let title_row: String = (0..buf.area.width)
+            .map(|x| buf.buffer[(x, 0)].symbol().to_string())
+            .collect();
+        assert!(title_row.contains("Logs"));
+        assert!(!title_row.contains("%"));
+    }
 }

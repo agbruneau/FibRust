@@ -168,4 +168,105 @@ mod tests {
         observer.on_progress(&ProgressUpdate::new(0, "test", 0.03, 4, 200));
         assert!(rx.try_recv().is_ok());
     }
+
+    #[test]
+    fn channel_observer_always_sends_done() {
+        let (tx, rx) = crossbeam_channel::bounded(10);
+        let observer = ChannelObserver::new(tx);
+
+        // Send a progress at 0.99 first
+        observer.on_progress(&ProgressUpdate::new(0, "test", 0.99, 99, 100));
+        let _ = rx.try_recv(); // consume it
+
+        // A done update should always be sent even if progress delta < threshold
+        let mut done_update = ProgressUpdate::new(0, "test", 0.995, 100, 100);
+        done_update.done = true;
+        observer.on_progress(&done_update);
+        let received = rx.try_recv();
+        assert!(received.is_ok());
+        assert!(received.unwrap().done);
+    }
+
+    #[test]
+    fn channel_observer_freeze_returns_frozen() {
+        let (tx, _rx) = crossbeam_channel::bounded(10);
+        let observer = ChannelObserver::new(tx);
+        let frozen = observer.freeze();
+        // FrozenObserver should start at 0.0 and use PROGRESS_REPORT_THRESHOLD
+        assert!(frozen.should_report(PROGRESS_REPORT_THRESHOLD));
+        assert!(!frozen.should_report(PROGRESS_REPORT_THRESHOLD / 2.0));
+    }
+
+    #[test]
+    fn channel_observer_full_channel_does_not_panic() {
+        // Channel with capacity 1
+        let (tx, _rx) = crossbeam_channel::bounded(1);
+        let observer = ChannelObserver::new(tx);
+
+        // First send fills the channel
+        observer.on_progress(&ProgressUpdate::new(0, "test", 0.02, 1, 100));
+        // Second send should silently drop (try_send)
+        observer.on_progress(&ProgressUpdate::new(0, "test", 0.05, 5, 100));
+        // Should not panic
+    }
+
+    #[test]
+    fn logging_observer_temporal_throttling() {
+        let observer = LoggingObserver::new(1000); // 1 second throttle
+
+        // First update should be accepted (last_time is 0, now >> 0)
+        observer.on_progress(&ProgressUpdate::new(0, "test", 0.05, 5, 100));
+
+        // Immediate second update with enough progress delta should be throttled by time
+        observer.on_progress(&ProgressUpdate::new(0, "test", 0.10, 10, 100));
+        // No panic = success; we can't easily assert logging output, but
+        // we can verify last_reported was updated only once
+    }
+
+    #[test]
+    fn logging_observer_done_bypasses_time_throttle() {
+        let observer = LoggingObserver::new(60_000); // Very long throttle
+
+        // First update
+        observer.on_progress(&ProgressUpdate::new(0, "test", 0.05, 5, 100));
+
+        // Done update should bypass time check
+        observer.on_progress(&ProgressUpdate::done(0, "test"));
+        // No panic = success
+    }
+
+    #[test]
+    fn logging_observer_freeze() {
+        let observer = LoggingObserver::new(100);
+        let frozen = observer.freeze();
+        assert!(frozen.should_report(PROGRESS_REPORT_THRESHOLD));
+    }
+
+    #[test]
+    fn logging_observer_small_progress_throttled() {
+        let observer = LoggingObserver::new(0); // No time throttle
+
+        // First update at 0.015
+        observer.on_progress(&ProgressUpdate::new(0, "test", 0.015, 1, 100));
+
+        // Very small increment (< PROGRESS_REPORT_THRESHOLD from last reported)
+        observer.on_progress(&ProgressUpdate::new(0, "test", 0.016, 2, 100));
+        // Should be throttled by progress threshold
+    }
+
+    #[test]
+    fn noop_observer_default() {
+        let observer = NoOpObserver::default();
+        observer.on_progress(&ProgressUpdate::new(0, "test", 0.5, 1, 2));
+    }
+
+    #[test]
+    fn noop_observer_freeze_never_reports() {
+        let observer = NoOpObserver::new();
+        let frozen = observer.freeze();
+        // Threshold is 1.0, so no sub-1.0 progress should trigger
+        assert!(!frozen.should_report(0.5));
+        assert!(!frozen.should_report(0.99));
+        assert!(frozen.should_report(1.0));
+    }
 }

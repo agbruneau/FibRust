@@ -195,4 +195,163 @@ mod tests {
         let name = path.file_name().unwrap().to_string_lossy();
         assert!(name.contains(PROFILE_FILENAME));
     }
+
+    #[test]
+    fn save_to_path_creates_valid_json() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("test_profile.json");
+        let p = CalibrationProfile::default();
+        save_to_path(&p, &path).unwrap();
+
+        // Read back raw content and verify it's valid JSON
+        let content = std::fs::read_to_string(&path).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&content).unwrap();
+        assert!(parsed.is_object());
+        assert!(parsed["version"].is_number());
+        assert!(parsed["parallel_threshold"].is_number());
+    }
+
+    #[test]
+    fn round_trip_preserves_all_fields() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("full_profile.json");
+        let p = CalibrationProfile {
+            version: profile::PROFILE_VERSION,
+            parallel_threshold: 8192,
+            fft_threshold: 600_000,
+            strassen_threshold: 4096,
+            cpu_model: "TestCPU".to_string(),
+            num_cores: 16,
+            cpu_fingerprint: "cores=16".to_string(),
+            timestamp: "unix:1234567890".to_string(),
+        };
+        save_to_path(&p, &path).unwrap();
+        let loaded = load_from_path(&path).unwrap();
+        assert_eq!(loaded.version, p.version);
+        assert_eq!(loaded.parallel_threshold, 8192);
+        assert_eq!(loaded.fft_threshold, 600_000);
+        assert_eq!(loaded.strassen_threshold, 4096);
+        assert_eq!(loaded.cpu_model, "TestCPU");
+        assert_eq!(loaded.num_cores, 16);
+        assert_eq!(loaded.cpu_fingerprint, "cores=16");
+        assert_eq!(loaded.timestamp, "unix:1234567890");
+    }
+
+    #[test]
+    fn load_from_path_nonexistent_returns_none() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("nonexistent.json");
+        assert!(load_from_path(&path).is_none());
+    }
+
+    #[test]
+    fn load_from_path_empty_file_returns_none() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("empty.json");
+        std::fs::write(&path, "").unwrap();
+        assert!(load_from_path(&path).is_none());
+    }
+
+    #[test]
+    fn load_from_path_partial_json_returns_none() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("partial.json");
+        // Valid JSON object but missing required fields
+        std::fs::write(&path, r#"{"version": 1}"#).unwrap();
+        assert!(load_from_path(&path).is_none());
+    }
+
+    #[test]
+    fn save_to_path_and_delete() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("to_delete.json");
+        let p = CalibrationProfile::default();
+        save_to_path(&p, &path).unwrap();
+        assert!(path.exists());
+        std::fs::remove_file(&path).unwrap();
+        assert!(!path.exists());
+    }
+
+    #[test]
+    fn save_to_nonexistent_directory_fails() {
+        let path = std::path::PathBuf::from("/tmp/definitely_nonexistent_dir_1234567890/sub/profile.json");
+        let p = CalibrationProfile::default();
+        let result = save_to_path(&p, &path);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn cwd_profile_path_starts_with_dot() {
+        let path = cwd_profile_path();
+        let name = path.file_name().unwrap().to_string_lossy();
+        assert!(name.starts_with('.'), "cwd profile should be a hidden file (starts with '.')");
+    }
+
+    #[test]
+    fn load_validated_rejects_incompatible_version() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join(PROFILE_FILENAME);
+        let mut p = CalibrationProfile::default();
+        p.version = 999;
+        save_to_path(&p, &path).unwrap();
+        let loaded = load_from_path(&path).unwrap();
+        assert!(!loaded.is_compatible());
+    }
+
+    #[test]
+    fn load_validated_rejects_invalid_thresholds() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join(PROFILE_FILENAME);
+        let mut p = CalibrationProfile::default();
+        p.parallel_threshold = 0; // Invalid
+        save_to_path(&p, &path).unwrap();
+        let loaded = load_from_path(&path).unwrap();
+        assert!(!loaded.is_valid());
+    }
+
+    #[test]
+    fn load_validated_rejects_cpu_mismatch() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join(PROFILE_FILENAME);
+        let mut p = CalibrationProfile::default();
+        p.cpu_fingerprint = "cores=999".to_string();
+        save_to_path(&p, &path).unwrap();
+        let loaded = load_from_path(&path).unwrap();
+        let current_fp = profile::cpu_fingerprint();
+        // If current CPU doesn't have 999 cores, this should fail
+        if current_fp != "cores=999" {
+            assert!(!loaded.matches_cpu(&current_fp));
+        }
+    }
+
+    #[test]
+    fn save_overwrite_existing() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("overwrite.json");
+        let mut p1 = CalibrationProfile::default();
+        p1.parallel_threshold = 1000;
+        save_to_path(&p1, &path).unwrap();
+
+        let mut p2 = CalibrationProfile::default();
+        p2.parallel_threshold = 2000;
+        save_to_path(&p2, &path).unwrap();
+
+        let loaded = load_from_path(&path).unwrap();
+        assert_eq!(loaded.parallel_threshold, 2000);
+    }
+
+    #[test]
+    fn load_from_path_with_extra_fields_succeeds() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("extra_fields.json");
+        // Save a profile, then add an extra field to the JSON
+        let p = CalibrationProfile::default();
+        let mut json: serde_json::Value =
+            serde_json::from_str(&serde_json::to_string_pretty(&p).unwrap()).unwrap();
+        json["extra_field"] = serde_json::Value::String("hello".to_string());
+        std::fs::write(&path, serde_json::to_string_pretty(&json).unwrap()).unwrap();
+        // Should still load successfully (serde ignores unknown fields by default)
+        let loaded = load_from_path(&path);
+        assert!(loaded.is_some());
+    }
 }

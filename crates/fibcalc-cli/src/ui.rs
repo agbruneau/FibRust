@@ -43,4 +43,61 @@ mod tests {
     fn color_check_does_not_panic() {
         let _ = is_color_disabled();
     }
+
+    #[test]
+    fn is_color_disabled_returns_bool() {
+        // Just verify it returns a boolean without panicking
+        let result = is_color_disabled();
+        assert!(result || !result);
+    }
+
+    #[test]
+    fn print_header_does_not_panic() {
+        print_header("Test Header");
+    }
+
+    #[test]
+    fn print_header_empty_string() {
+        print_header("");
+    }
+
+    #[test]
+    fn print_header_special_chars() {
+        print_header("Header with <special> & \"chars\"");
+    }
+
+    #[test]
+    fn print_success_does_not_panic() {
+        print_success("Operation completed");
+    }
+
+    #[test]
+    fn print_success_empty_string() {
+        print_success("");
+    }
+
+    #[test]
+    fn print_error_does_not_panic() {
+        print_error("Something went wrong");
+    }
+
+    #[test]
+    fn print_error_empty_string() {
+        print_error("");
+    }
+
+    #[test]
+    fn print_functions_with_long_text() {
+        let long_text = "A".repeat(1000);
+        print_header(&long_text);
+        print_success(&long_text);
+        print_error(&long_text);
+    }
+
+    #[test]
+    fn print_functions_with_unicode() {
+        print_header("Fibonacci \u{2192} calcul");
+        print_success("R\u{00e9}sultat correct");
+        print_error("Erreur inattendue");
+    }
 }

@@ -136,4 +136,167 @@ mod tests {
         reporter.complete();
         // Should not panic in quiet mode
     }
+
+    // --- CLIProgressReporter additional tests ---
+
+    #[test]
+    fn reporter_non_quiet_mode() {
+        let reporter = CLIProgressReporter::new(false);
+        let update = ProgressUpdate::new(0, "FastDoubling", 0.5, 50, 100);
+        reporter.report(&update);
+        reporter.complete();
+        // Should not panic in non-quiet mode
+    }
+
+    #[test]
+    fn reporter_report_at_zero_progress() {
+        let reporter = CLIProgressReporter::new(false);
+        let update = ProgressUpdate::new(0, "Matrix", 0.0, 0, 100);
+        reporter.report(&update);
+        reporter.complete();
+    }
+
+    #[test]
+    fn reporter_report_at_full_progress() {
+        let reporter = CLIProgressReporter::new(false);
+        let update = ProgressUpdate::new(0, "FFT", 1.0, 100, 100);
+        reporter.report(&update);
+        reporter.complete();
+    }
+
+    #[test]
+    fn reporter_multiple_updates() {
+        let reporter = CLIProgressReporter::new(false);
+        for step in 0..=10 {
+            let progress = step as f64 / 10.0;
+            let update = ProgressUpdate::new(0, "FastDoubling", progress, step, 10);
+            reporter.report(&update);
+        }
+        reporter.complete();
+    }
+
+    #[test]
+    fn reporter_quiet_complete() {
+        let reporter = CLIProgressReporter::new(true);
+        reporter.complete();
+        // Should not panic or print anything
+    }
+
+    // --- CLIResultPresenter additional tests ---
+
+    #[test]
+    fn presenter_verbose_mode() {
+        let presenter = CLIResultPresenter::new(true, false);
+        assert!(presenter.verbose);
+        assert!(!presenter.quiet);
+    }
+
+    #[test]
+    fn presenter_present_result_quiet() {
+        let presenter = CLIResultPresenter::new(false, true);
+        let result = BigUint::from(55u64);
+        presenter.present_result("FastDoubling", 10, &result, Duration::from_millis(5), false);
+        // Should not panic
+    }
+
+    #[test]
+    fn presenter_present_result_normal() {
+        let presenter = CLIResultPresenter::new(false, false);
+        let result = BigUint::from(55u64);
+        presenter.present_result("FastDoubling", 10, &result, Duration::from_millis(5), false);
+    }
+
+    #[test]
+    fn presenter_present_result_with_details() {
+        let presenter = CLIResultPresenter::new(false, false);
+        let result = BigUint::from(832040u64);
+        presenter.present_result("Matrix", 30, &result, Duration::from_millis(10), true);
+    }
+
+    #[test]
+    fn presenter_present_result_verbose() {
+        let presenter = CLIResultPresenter::new(true, false);
+        let result = BigUint::from(12345u64);
+        presenter.present_result("FFT", 100, &result, Duration::from_secs(1), true);
+    }
+
+    #[test]
+    fn presenter_present_comparison_quiet() {
+        let presenter = CLIResultPresenter::new(false, true);
+        let results = vec![
+            CalculationResult {
+                algorithm: "FastDoubling".into(),
+                value: Some(BigUint::from(55u64)),
+                duration: Duration::from_millis(5),
+                error: None,
+            },
+        ];
+        presenter.present_comparison(&results);
+        // Should not print anything in quiet mode
+    }
+
+    #[test]
+    fn presenter_present_comparison_normal() {
+        let presenter = CLIResultPresenter::new(false, false);
+        let results = vec![
+            CalculationResult {
+                algorithm: "FastDoubling".into(),
+                value: Some(BigUint::from(55u64)),
+                duration: Duration::from_millis(5),
+                error: None,
+            },
+            CalculationResult {
+                algorithm: "Matrix".into(),
+                value: Some(BigUint::from(55u64)),
+                duration: Duration::from_millis(10),
+                error: None,
+            },
+        ];
+        presenter.present_comparison(&results);
+    }
+
+    #[test]
+    fn presenter_present_comparison_with_error() {
+        let presenter = CLIResultPresenter::new(false, false);
+        let results = vec![
+            CalculationResult {
+                algorithm: "FastDoubling".into(),
+                value: Some(BigUint::from(55u64)),
+                duration: Duration::from_millis(5),
+                error: None,
+            },
+            CalculationResult {
+                algorithm: "FFT".into(),
+                value: None,
+                duration: Duration::from_millis(0),
+                error: Some("computation failed".into()),
+            },
+        ];
+        presenter.present_comparison(&results);
+    }
+
+    #[test]
+    fn presenter_present_comparison_empty() {
+        let presenter = CLIResultPresenter::new(false, false);
+        presenter.present_comparison(&[]);
+    }
+
+    #[test]
+    fn presenter_present_error() {
+        let presenter = CLIResultPresenter::new(false, false);
+        presenter.present_error("test error message");
+    }
+
+    #[test]
+    fn presenter_present_error_empty() {
+        let presenter = CLIResultPresenter::new(false, false);
+        presenter.present_error("");
+    }
+
+    #[test]
+    fn presenter_present_result_large_n() {
+        let presenter = CLIResultPresenter::new(false, false);
+        let result = BigUint::from(1u64);
+        presenter.present_result("FastDoubling", 1_000_000, &result, Duration::from_secs(30), true);
+    }
 }

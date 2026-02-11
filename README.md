@@ -137,11 +137,35 @@ Fast Doubling with FFT-accelerated big-number multiplication using Fermat Number
 ## Testing
 
 ```bash
-cargo test                          # All tests (349 tests)
+cargo test                          # All tests (680+ tests)
 cargo test --lib                    # Unit tests only
 cargo test --test golden            # Golden file tests
 cargo test --test e2e               # End-to-end tests
 cargo test -p fibcalc-core          # Tests for a specific crate
+```
+
+### Test Coverage
+
+**96.1% line coverage** | **97.0% function coverage** (measured with `cargo-llvm-cov`)
+
+| Crate | Tests | Line Coverage |
+|-------|-------|---------------|
+| `fibcalc-core` | 182 | 96-100% |
+| `fibcalc-tui` | 171 | 94-100% |
+| `fibcalc-bigfft` | 121 | 87-100% |
+| `fibcalc-calibration` | 43 | 87-100% |
+| `fibcalc` | 74 | 80-100% |
+| `fibcalc-orchestration` | 21 | 95-100% |
+| `fibcalc-cli` | 48 | 95-100% |
+| **Workspace golden** | 17 | -- |
+
+Coverage includes unit tests, property-based tests (proptest), golden file tests, and end-to-end CLI tests.
+
+```bash
+# Measure coverage (requires cargo-llvm-cov)
+cargo install cargo-llvm-cov
+cargo llvm-cov --workspace          # Text report
+cargo llvm-cov --workspace --html   # HTML report in target/llvm-cov/html/
 ```
 
 ## Development

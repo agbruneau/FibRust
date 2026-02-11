@@ -164,4 +164,128 @@ mod tests {
     fn format_throughput_gbits() {
         assert_eq!(format_throughput(3_500_000_000.0), "3.5 Gbit/s");
     }
+
+    #[test]
+    fn format_throughput_zero() {
+        assert_eq!(format_throughput(0.0), "0 bit/s");
+    }
+
+    #[test]
+    fn format_throughput_boundary_kbits() {
+        assert_eq!(format_throughput(1_000.0), "1.0 Kbit/s");
+    }
+
+    #[test]
+    fn format_throughput_boundary_mbits() {
+        assert_eq!(format_throughput(1_000_000.0), "1.0 Mbit/s");
+    }
+
+    #[test]
+    fn format_throughput_boundary_gbits() {
+        assert_eq!(format_throughput(1_000_000_000.0), "1.0 Gbit/s");
+    }
+
+    #[test]
+    fn metrics_default_equals_new() {
+        let collector = MetricsCollector::default();
+        assert!((collector.cpu_percent).abs() < f64::EPSILON);
+        assert!((collector.memory_mb).abs() < f64::EPSILON);
+        assert!((collector.throughput_bits_per_sec).abs() < f64::EPSILON);
+    }
+
+    // --- render_metrics tests ---
+
+    use ratatui::backend::TestBackend;
+    use ratatui::Terminal;
+
+    #[test]
+    fn render_metrics_does_not_panic() {
+        let backend = TestBackend::new(40, 8);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal
+            .draw(|frame| {
+                let area = frame.area();
+                render_metrics(frame, area, 12.5, 2048.0, 75.0);
+            })
+            .unwrap();
+    }
+
+    #[test]
+    fn render_metrics_contains_elapsed() {
+        let backend = TestBackend::new(40, 8);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let buf = terminal
+            .draw(|frame| {
+                let area = frame.area();
+                render_metrics(frame, area, 42.3, 1024.0, 50.0);
+            })
+            .unwrap();
+
+        // Check row 1 (after border) for elapsed text
+        let row1: String = (0..buf.area.width)
+            .map(|x| buf.buffer[(x, 1)].symbol().to_string())
+            .collect();
+        assert!(row1.contains("Elapsed"));
+        assert!(row1.contains("42.3"));
+    }
+
+    #[test]
+    fn render_metrics_contains_memory() {
+        let backend = TestBackend::new(40, 8);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let buf = terminal
+            .draw(|frame| {
+                let area = frame.area();
+                render_metrics(frame, area, 0.0, 512.5, 0.0);
+            })
+            .unwrap();
+
+        let row2: String = (0..buf.area.width)
+            .map(|x| buf.buffer[(x, 2)].symbol().to_string())
+            .collect();
+        assert!(row2.contains("Memory"));
+        assert!(row2.contains("512.5"));
+    }
+
+    #[test]
+    fn render_metrics_contains_cpu() {
+        let backend = TestBackend::new(40, 8);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let buf = terminal
+            .draw(|frame| {
+                let area = frame.area();
+                render_metrics(frame, area, 0.0, 0.0, 99.0);
+            })
+            .unwrap();
+
+        let row3: String = (0..buf.area.width)
+            .map(|x| buf.buffer[(x, 3)].symbol().to_string())
+            .collect();
+        assert!(row3.contains("CPU"));
+        assert!(row3.contains("99"));
+    }
+
+    #[test]
+    fn render_metrics_zero_values() {
+        let backend = TestBackend::new(40, 8);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal
+            .draw(|frame| {
+                let area = frame.area();
+                render_metrics(frame, area, 0.0, 0.0, 0.0);
+            })
+            .unwrap();
+    }
+
+    #[test]
+    fn render_metrics_small_area() {
+        let backend = TestBackend::new(20, 5);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal
+            .draw(|frame| {
+                let area = frame.area();
+                render_metrics(frame, area, 100.0, 4096.0, 100.0);
+            })
+            .unwrap();
+    }
 }

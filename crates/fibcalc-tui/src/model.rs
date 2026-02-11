@@ -190,13 +190,16 @@ impl TuiApp {
                 self.finished_elapsed = self.start_time.map(|t| t.elapsed());
             }
             TuiMessage::SystemMetrics(metrics) => {
-                self.cpu_percent = metrics.cpu_percent;
-                self.memory_mb = metrics.memory_mb;
-                self.throughput_bits_per_sec = metrics.throughput_bits_per_sec;
-                // Also push throughput to sparkline
-                self.sparkline_data.push(metrics.throughput_bits_per_sec);
-                if self.sparkline_data.len() > 60 {
-                    self.sparkline_data.remove(0);
+                // Ignore updates after calculations have finished
+                if self.finished_elapsed.is_none() {
+                    self.cpu_percent = metrics.cpu_percent;
+                    self.memory_mb = metrics.memory_mb;
+                    self.throughput_bits_per_sec = metrics.throughput_bits_per_sec;
+                    // Also push throughput to sparkline
+                    self.sparkline_data.push(metrics.throughput_bits_per_sec);
+                    if self.sparkline_data.len() > 60 {
+                        self.sparkline_data.remove(0);
+                    }
                 }
             }
         }
@@ -771,5 +774,376 @@ mod tests {
         let (mut app, _tx) = make_app();
         app.set_n(1000);
         assert_eq!(app.n_value, 1000);
+    }
+
+    #[test]
+    fn handle_tick_does_nothing() {
+        let (mut app, _tx) = make_app();
+        app.handle_message(TuiMessage::Tick);
+        // Tick is a no-op; verify state unchanged
+        assert!(!app.should_quit);
+        assert!(app.progress.is_empty());
+    }
+
+    #[test]
+    fn handle_key_press_message() {
+        let (mut app, _tx) = make_app();
+        app.handle_message(TuiMessage::KeyPress(KeyAction::Quit));
+        assert!(app.should_quit);
+    }
+
+    #[test]
+    fn handle_key_press_pause_via_message() {
+        let (mut app, _tx) = make_app();
+        app.handle_message(TuiMessage::KeyPress(KeyAction::Pause));
+        assert!(app.paused);
+    }
+
+    #[test]
+    fn handle_key_press_none_action() {
+        let (mut app, _tx) = make_app();
+        app.handle_key_action(KeyAction::None);
+        // None action should not change state
+        assert!(!app.should_quit);
+        assert!(!app.paused);
+    }
+
+    #[test]
+    fn handle_finished_freezes_elapsed() {
+        let (mut app, _tx) = make_app();
+        app.handle_message(TuiMessage::Started);
+        // Let a tiny bit of time pass
+        std::thread::sleep(std::time::Duration::from_millis(5));
+        app.handle_message(TuiMessage::Finished);
+        assert!(app.finished_elapsed.is_some());
+        let frozen = app.finished_elapsed.unwrap();
+        assert!(frozen.as_millis() >= 1); // at least some time passed
+    }
+
+    #[test]
+    fn handle_finished_without_start() {
+        let (mut app, _tx) = make_app();
+        app.handle_message(TuiMessage::Finished);
+        // No start_time, so finished_elapsed should be None
+        assert!(app.finished_elapsed.is_none());
+    }
+
+    #[test]
+    fn elapsed_returns_frozen_after_finish() {
+        let (mut app, _tx) = make_app();
+        app.handle_message(TuiMessage::Started);
+        std::thread::sleep(std::time::Duration::from_millis(5));
+        app.handle_message(TuiMessage::Finished);
+        let frozen = app.elapsed().unwrap();
+        // After finishing, elapsed should return frozen value (not increase)
+        std::thread::sleep(std::time::Duration::from_millis(5));
+        let elapsed_later = app.elapsed().unwrap();
+        assert_eq!(frozen, elapsed_later);
+    }
+
+    #[test]
+    fn system_metrics_ignored_after_finish() {
+        let (mut app, _tx) = make_app();
+        app.handle_message(TuiMessage::Started);
+        app.handle_message(TuiMessage::Finished);
+
+        // Metrics after Finished should be ignored
+        app.handle_message(TuiMessage::SystemMetrics(SystemMetrics {
+            cpu_percent: 99.0,
+            memory_mb: 9999.0,
+            throughput_bits_per_sec: 1_000_000.0,
+        }));
+        assert!((app.cpu_percent - 0.0).abs() < f64::EPSILON);
+        assert!((app.memory_mb - 0.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn system_metrics_sparkline_ring_buffer() {
+        let (mut app, _tx) = make_app();
+        for i in 0..65 {
+            app.handle_message(TuiMessage::SystemMetrics(SystemMetrics {
+                cpu_percent: 50.0,
+                memory_mb: 100.0,
+                throughput_bits_per_sec: i as f64,
+            }));
+        }
+        // Ring buffer capped at 60
+        assert_eq!(app.sparkline_data.len(), 60);
+    }
+
+    #[test]
+    fn started_clears_errors() {
+        let (mut app, _tx) = make_app();
+        app.handle_message(TuiMessage::Error("err1".to_string()));
+        assert_eq!(app.errors.len(), 1);
+        app.handle_message(TuiMessage::Started);
+        assert!(app.errors.is_empty());
+    }
+
+    #[test]
+    fn started_clears_completed() {
+        let (mut app, _tx) = make_app();
+        app.handle_message(TuiMessage::Complete {
+            algorithm: "Test".to_string(),
+            duration: Duration::from_millis(50),
+        });
+        assert_eq!(app.completed.len(), 1);
+        app.handle_message(TuiMessage::Started);
+        assert!(app.completed.is_empty());
+    }
+
+    #[test]
+    fn started_resets_finished_elapsed() {
+        let (mut app, _tx) = make_app();
+        app.handle_message(TuiMessage::Started);
+        app.handle_message(TuiMessage::Finished);
+        assert!(app.finished_elapsed.is_some());
+        app.handle_message(TuiMessage::Started);
+        assert!(app.finished_elapsed.is_none());
+    }
+
+    #[test]
+    fn log_overflow_adjusts_scroll_offset() {
+        let (mut app, _tx) = make_app();
+        // Set scroll offset to something > 0
+        app.log_auto_scroll = false;
+        app.log_scroll_offset = 10;
+        // Fill with >500 logs
+        for i in 0..505 {
+            app.handle_message(TuiMessage::Log(format!("msg {i}")));
+        }
+        assert_eq!(app.logs.len(), 500);
+        // Scroll offset should have been adjusted down by 5 removals
+        assert_eq!(app.log_scroll_offset, 5);
+    }
+
+    #[test]
+    fn log_overflow_scroll_offset_at_zero() {
+        let (mut app, _tx) = make_app();
+        app.log_auto_scroll = false;
+        app.log_scroll_offset = 0;
+        for i in 0..505 {
+            app.handle_message(TuiMessage::Log(format!("msg {i}")));
+        }
+        assert_eq!(app.logs.len(), 500);
+        // Offset already at 0, should stay 0
+        assert_eq!(app.log_scroll_offset, 0);
+    }
+
+    #[test]
+    fn scroll_down_at_end_stays_at_end() {
+        let (mut app, _tx) = make_app();
+        for i in 0..5 {
+            app.handle_message(TuiMessage::Log(format!("log {i}")));
+        }
+        app.log_auto_scroll = false;
+        app.log_scroll_offset = 4; // at max
+        app.handle_key_action(KeyAction::ScrollDown);
+        assert_eq!(app.log_scroll_offset, 4);
+        assert!(app.log_auto_scroll);
+    }
+
+    #[test]
+    fn scroll_up_at_zero_stays_at_zero() {
+        let (mut app, _tx) = make_app();
+        for i in 0..5 {
+            app.handle_message(TuiMessage::Log(format!("log {i}")));
+        }
+        app.log_auto_scroll = false;
+        app.log_scroll_offset = 0;
+        app.handle_key_action(KeyAction::ScrollUp);
+        assert_eq!(app.log_scroll_offset, 0);
+    }
+
+    #[test]
+    fn page_up_via_key_action() {
+        let (mut app, _tx) = make_app();
+        for i in 0..30 {
+            app.handle_message(TuiMessage::Log(format!("log {i}")));
+        }
+        app.log_scroll_offset = 20;
+        app.log_auto_scroll = true;
+        app.handle_key_action(KeyAction::PageUp);
+        assert!(!app.log_auto_scroll);
+        assert_eq!(app.log_scroll_offset, 10);
+    }
+
+    #[test]
+    fn page_down_via_key_action() {
+        let (mut app, _tx) = make_app();
+        for i in 0..30 {
+            app.handle_message(TuiMessage::Log(format!("log {i}")));
+        }
+        app.log_scroll_offset = 10;
+        app.log_auto_scroll = false;
+        app.handle_key_action(KeyAction::PageDown);
+        assert_eq!(app.log_scroll_offset, 20);
+    }
+
+    #[test]
+    fn home_via_key_action() {
+        let (mut app, _tx) = make_app();
+        for i in 0..20 {
+            app.handle_message(TuiMessage::Log(format!("log {i}")));
+        }
+        app.log_scroll_offset = 15;
+        app.handle_key_action(KeyAction::Home);
+        assert_eq!(app.log_scroll_offset, 0);
+        assert!(!app.log_auto_scroll);
+    }
+
+    #[test]
+    fn end_via_key_action() {
+        let (mut app, _tx) = make_app();
+        for i in 0..20 {
+            app.handle_message(TuiMessage::Log(format!("log {i}")));
+        }
+        app.log_auto_scroll = false;
+        app.log_scroll_offset = 0;
+        app.handle_key_action(KeyAction::End);
+        assert!(app.log_auto_scroll);
+        assert_eq!(app.log_scroll_offset, 19);
+    }
+
+    #[test]
+    fn progress_updates_existing_entries() {
+        let (mut app, _tx) = make_app();
+        app.handle_message(TuiMessage::Progress {
+            index: 0,
+            progress: 0.3,
+            algorithm: "FastDoubling".to_string(),
+        });
+        assert!((app.progress[0] - 0.3).abs() < f64::EPSILON);
+        // Update same index
+        app.handle_message(TuiMessage::Progress {
+            index: 0,
+            progress: 0.9,
+            algorithm: "FastDoubling".to_string(),
+        });
+        assert!((app.progress[0] - 0.9).abs() < f64::EPSILON);
+        assert_eq!(app.progress.len(), 1);
+    }
+
+    #[test]
+    fn metrics_layout_computation() {
+        let area = Rect::new(0, 0, 40, 20);
+        let (metrics, sparkline) = TuiApp::compute_metrics_layout(area);
+        assert!(metrics.height > 0);
+        assert!(sparkline.height > 0);
+        assert_eq!(metrics.height + sparkline.height, area.height);
+    }
+
+    #[test]
+    fn render_with_show_logs_true() {
+        use ratatui::backend::TestBackend;
+        use ratatui::Terminal;
+
+        let (mut app, _tx) = make_app();
+        app.show_logs = true;
+        app.set_n(42);
+        app.handle_message(TuiMessage::Log("test log entry".to_string()));
+
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal
+            .draw(|frame| {
+                app.render(frame);
+            })
+            .unwrap();
+    }
+
+    #[test]
+    fn render_with_show_logs_false() {
+        use ratatui::backend::TestBackend;
+        use ratatui::Terminal;
+
+        let (mut app, _tx) = make_app();
+        app.show_logs = false;
+        app.set_n(100);
+
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal
+            .draw(|frame| {
+                app.render(frame);
+            })
+            .unwrap();
+    }
+
+    #[test]
+    fn render_with_algorithms() {
+        use ratatui::backend::TestBackend;
+        use ratatui::Terminal;
+
+        let (mut app, _tx) = make_app();
+        app.handle_message(TuiMessage::Progress {
+            index: 0,
+            progress: 0.5,
+            algorithm: "FastDoubling".to_string(),
+        });
+        app.handle_message(TuiMessage::Progress {
+            index: 1,
+            progress: 0.3,
+            algorithm: "Matrix".to_string(),
+        });
+
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal
+            .draw(|frame| {
+                app.render(frame);
+            })
+            .unwrap();
+    }
+
+    #[test]
+    fn render_with_no_algorithms_shows_na() {
+        use ratatui::backend::TestBackend;
+        use ratatui::Terminal;
+
+        let (app, _tx) = make_app();
+        assert!(app.algorithms.is_empty());
+
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal
+            .draw(|frame| {
+                app.render(frame);
+            })
+            .unwrap();
+    }
+
+    #[test]
+    fn render_with_elapsed_time() {
+        use ratatui::backend::TestBackend;
+        use ratatui::Terminal;
+
+        let (mut app, _tx) = make_app();
+        app.handle_message(TuiMessage::Started);
+
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal
+            .draw(|frame| {
+                app.render(frame);
+            })
+            .unwrap();
+    }
+
+    #[test]
+    fn update_processes_multiple_messages() {
+        let (mut app, tx) = make_app();
+        tx.send(TuiMessage::Log("msg1".to_string())).unwrap();
+        tx.send(TuiMessage::Log("msg2".to_string())).unwrap();
+        tx.send(TuiMessage::Log("msg3".to_string())).unwrap();
+        app.update();
+        assert_eq!(app.logs.len(), 3);
+    }
+
+    #[test]
+    fn update_with_no_messages() {
+        let (mut app, _tx) = make_app();
+        app.update(); // should not panic
+        assert!(app.logs.is_empty());
     }
 }
