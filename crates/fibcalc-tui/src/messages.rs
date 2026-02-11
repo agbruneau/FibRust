@@ -45,6 +45,8 @@ pub enum TuiMessage {
     Error(String),
     /// System metrics update (CPU, memory, throughput).
     SystemMetrics(SystemMetrics),
+    /// All calculations finished — freezes the elapsed timer.
+    Finished,
 }
 
 #[cfg(test)]

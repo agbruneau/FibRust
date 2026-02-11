@@ -5,6 +5,8 @@ use std::time::Duration;
 use crossbeam_channel::Sender;
 use num_bigint::BigUint;
 
+use fibcalc_core::constants::PROGRESS_REPORT_THRESHOLD;
+use fibcalc_core::observer::{FrozenObserver, ProgressObserver};
 use fibcalc_core::progress::ProgressUpdate;
 use fibcalc_orchestration::interfaces::{CalculationResult, ProgressReporter, ResultPresenter};
 
@@ -33,6 +35,35 @@ impl ProgressReporter for TUIProgressReporter {
 
     fn complete(&self) {
         // TUI handles completion via the Complete message
+    }
+}
+
+/// Core-level progress observer that forwards updates to the TUI channel.
+///
+/// Implements `ProgressObserver` (fibcalc-core trait) so it can be passed
+/// directly to `execute_calculations_with_observer`.
+pub struct TuiBridgeObserver {
+    tx: Sender<TuiMessage>,
+}
+
+impl TuiBridgeObserver {
+    #[must_use]
+    pub fn new(tx: Sender<TuiMessage>) -> Self {
+        Self { tx }
+    }
+}
+
+impl ProgressObserver for TuiBridgeObserver {
+    fn on_progress(&self, update: &ProgressUpdate) {
+        let _ = self.tx.try_send(TuiMessage::Progress {
+            index: update.calc_index,
+            progress: update.progress,
+            algorithm: update.algorithm.clone(),
+        });
+    }
+
+    fn freeze(&self) -> FrozenObserver {
+        FrozenObserver::new(PROGRESS_REPORT_THRESHOLD)
     }
 }
 

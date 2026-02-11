@@ -84,9 +84,14 @@ pub fn render_logs(frame: &mut Frame, area: Rect, logs: &[String], scroll_offset
     let visible_height = area.height.saturating_sub(2) as usize; // account for borders
     let total = logs.len();
 
+    // Clamp offset so we never skip past the point where
+    // the last log sits at the bottom of the visible area.
+    let max_offset = total.saturating_sub(visible_height);
+    let effective_offset = scroll_offset.min(max_offset);
+
     let items: Vec<ListItem> = logs
         .iter()
-        .skip(scroll_offset)
+        .skip(effective_offset)
         .take(visible_height)
         .map(|log| {
             let style = if log.starts_with("[ERROR]") {
@@ -101,10 +106,10 @@ pub fn render_logs(frame: &mut Frame, area: Rect, logs: &[String], scroll_offset
         .collect();
 
     let scroll_indicator = if total > visible_height {
-        let pct = if total <= 1 {
+        let pct = if max_offset == 0 {
             100
         } else {
-            (scroll_offset * 100) / (total.saturating_sub(1)).max(1)
+            (effective_offset * 100) / max_offset
         };
         format!(" Logs ({pct}%) ")
     } else {

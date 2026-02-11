@@ -9,7 +9,9 @@ use fibcalc_core::progress::CancellationToken;
 use fibcalc_core::registry::DefaultFactory;
 use fibcalc_orchestration::calculator_selection::get_calculators_to_run;
 use fibcalc_orchestration::interfaces::ResultPresenter;
-use fibcalc_orchestration::orchestrator::{analyze_comparison_results, execute_calculations};
+use fibcalc_orchestration::orchestrator::{
+    analyze_comparison_results, execute_calculations, execute_calculations_with_observer,
+};
 
 use crate::config::AppConfig;
 
@@ -169,13 +171,38 @@ fn run_tui(config: &AppConfig) -> Result<()> {
     let mut app = fibcalc_tui::TuiApp::new(rx);
     app.set_n(config.n);
 
+    // Spawn metrics collection thread
+    let metrics_tx = tx.clone();
+    let metrics_cancel = cancel.clone();
+    std::thread::spawn(move || {
+        let mut collector = fibcalc_tui::MetricsCollector::new();
+        loop {
+            if metrics_cancel.is_cancelled() {
+                break;
+            }
+            collector.refresh();
+            if metrics_tx
+                .send(fibcalc_tui::TuiMessage::SystemMetrics(
+                    collector.snapshot(),
+                ))
+                .is_err()
+            {
+                break; // channel closed, TUI exited
+            }
+            std::thread::sleep(std::time::Duration::from_secs(1));
+        }
+    });
+
     // Spawn background thread for calculations
     let n = config.n;
     let timeout = Some(config.timeout_duration());
     std::thread::spawn(move || {
         let _ = tx.send(fibcalc_tui::TuiMessage::Started);
 
-        let results = execute_calculations(&calculators, n, &opts, &cancel, timeout);
+        // Use the bridge observer so progress updates reach the TUI
+        let observer = fibcalc_tui::TuiBridgeObserver::new(tx.clone());
+        let results =
+            execute_calculations_with_observer(&calculators, n, &opts, &cancel, timeout, &observer);
 
         // Analyze comparison results
         if results.len() > 1 {
@@ -203,6 +230,8 @@ fn run_tui(config: &AppConfig) -> Result<()> {
             }
         }
 
+        // Freeze the elapsed timer
+        let _ = tx.send(fibcalc_tui::TuiMessage::Finished);
         let _ = tx.send(fibcalc_tui::TuiMessage::Log(
             "All calculations complete. Press 'q' to quit.".to_string(),
         ));

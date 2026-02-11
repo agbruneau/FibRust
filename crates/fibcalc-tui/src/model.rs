@@ -64,6 +64,8 @@ pub struct TuiApp {
     pub n_value: u64,
     /// Error messages.
     pub errors: Vec<String>,
+    /// Frozen elapsed time once calculations finish.
+    pub finished_elapsed: Option<Duration>,
 }
 
 impl TuiApp {
@@ -92,6 +94,7 @@ impl TuiApp {
             throughput_bits_per_sec: 0.0,
             n_value: 0,
             errors: Vec::new(),
+            finished_elapsed: None,
         }
     }
 
@@ -153,6 +156,7 @@ impl TuiApp {
             }
             TuiMessage::Started => {
                 self.start_time = Some(Instant::now());
+                self.finished_elapsed = None;
                 self.generation += 1;
                 self.progress.clear();
                 self.algorithms.clear();
@@ -181,6 +185,9 @@ impl TuiApp {
             TuiMessage::Error(err) => {
                 self.errors.push(err.clone());
                 self.logs.push(format!("[ERROR] {err}"));
+            }
+            TuiMessage::Finished => {
+                self.finished_elapsed = self.start_time.map(|t| t.elapsed());
             }
             TuiMessage::SystemMetrics(metrics) => {
                 self.cpu_percent = metrics.cpu_percent;
@@ -277,9 +284,13 @@ impl TuiApp {
     }
 
     /// Get the elapsed time since calculation started.
+    ///
+    /// Returns the frozen elapsed time if calculations have finished,
+    /// or the live elapsed time if still running.
     #[must_use]
     pub fn elapsed(&self) -> Option<Duration> {
-        self.start_time.map(|t| t.elapsed())
+        self.finished_elapsed
+            .or_else(|| self.start_time.map(|t| t.elapsed()))
     }
 
     /// Compute the adaptive 60/40 layout.

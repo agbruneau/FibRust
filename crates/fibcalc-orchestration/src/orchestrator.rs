@@ -4,6 +4,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use fibcalc_core::calculator::{Calculator, FibError};
+use fibcalc_core::observer::ProgressObserver;
 use fibcalc_core::observers::NoOpObserver;
 use fibcalc_core::options::Options;
 use fibcalc_core::progress::CancellationToken;
@@ -18,14 +19,25 @@ pub fn execute_calculations(
     cancel: &CancellationToken,
     timeout: Option<Duration>,
 ) -> Vec<CalculationResult> {
-    let observer = NoOpObserver::new();
+    execute_calculations_with_observer(calculators, n, opts, cancel, timeout, &NoOpObserver::new())
+}
+
+/// Execute calculations with all given calculators and a progress observer.
+pub fn execute_calculations_with_observer(
+    calculators: &[Arc<dyn Calculator>],
+    n: u64,
+    opts: &Options,
+    cancel: &CancellationToken,
+    timeout: Option<Duration>,
+    observer: &dyn ProgressObserver,
+) -> Vec<CalculationResult> {
     let start_time = Instant::now();
 
     if calculators.len() == 1 {
         // Single calculator: run directly
         let calc = &calculators[0];
         let start = Instant::now();
-        let result = calc.calculate(cancel, &observer, 0, n, opts);
+        let result = calc.calculate(cancel, observer, 0, n, opts);
         let duration = start.elapsed();
 
         return vec![match result {
@@ -67,7 +79,7 @@ pub fn execute_calculations(
                 }
             }
 
-            let result = calc.calculate(cancel, &observer, i, n, opts);
+            let result = calc.calculate(cancel, observer, i, n, opts);
             let duration = start.elapsed();
 
             match result {
