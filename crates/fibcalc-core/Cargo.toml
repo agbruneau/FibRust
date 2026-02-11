@@ -1,0 +1,38 @@
+[package]
+name = "fibcalc-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Core Fibonacci algorithms, strategies, observers, and dynamic thresholds"
+
+[features]
+default = []
+gmp = ["dep:rug"]
+
+[dependencies]
+num-bigint = { workspace = true }
+num-traits = { workspace = true }
+num-integer = { workspace = true }
+rayon = { workspace = true }
+crossbeam = { workspace = true }
+crossbeam-channel = { workspace = true }
+parking_lot = { workspace = true }
+tracing = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+bumpalo = { workspace = true }
+rug = { workspace = true, optional = true }
+fibcalc-bigfft = { workspace = true }
+
+[dev-dependencies]
+proptest = "1"
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "fibonacci"
+harness = false
+
+[lints]
+workspace = true

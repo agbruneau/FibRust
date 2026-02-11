@@ -1,0 +1,22 @@
+[package]
+name = "fibcalc-bigfft"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "FFT-based big number multiplication using Fermat numbers"
+
+[dependencies]
+num-bigint = { workspace = true }
+num-traits = { workspace = true }
+num-integer = { workspace = true }
+rayon = { workspace = true }
+parking_lot = { workspace = true }
+tracing = { workspace = true }
+bumpalo = { workspace = true }
+
+[dev-dependencies]
+proptest = "1"
+
+[lints]
+workspace = true

@@ -1,0 +1,44 @@
+[package]
+name = "fibcalc"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "High-performance Fibonacci calculator with CLI and TUI modes"
+
+[[bin]]
+name = "fibcalc"
+path = "src/main.rs"
+
+[features]
+default = []
+gmp = ["fibcalc-core/gmp"]
+
+[dependencies]
+fibcalc-core = { workspace = true }
+fibcalc-bigfft = { workspace = true }
+fibcalc-orchestration = { workspace = true }
+fibcalc-cli = { workspace = true }
+fibcalc-tui = { workspace = true }
+fibcalc-calibration = { workspace = true }
+num-bigint = { workspace = true }
+clap = { workspace = true }
+clap_complete = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+crossbeam-channel = { workspace = true }
+ctrlc = "3"
+
+[dev-dependencies]
+assert_cmd = "2"
+predicates = "3"
+serde = { workspace = true }
+serde_json = { workspace = true }
+num-bigint = { workspace = true }
+proptest = "1"
+tempfile = "3"
+
+[lints]
+workspace = true

@@ -1,0 +1,121 @@
+[package]
+name = "fibcalc-tests"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[lib]
+doctest = false
+
+[workspace]
+resolver = "2"
+members = [
+    "crates/fibcalc",
+    "crates/fibcalc-core",
+    "crates/fibcalc-bigfft",
+    "crates/fibcalc-orchestration",
+    "crates/fibcalc-cli",
+    "crates/fibcalc-tui",
+    "crates/fibcalc-calibration",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.80"
+authors = ["FibCalc-rs Contributors"]
+license = "Apache-2.0"
+repository = "https://github.com/agbruneau/FibRust"
+
+[workspace.dependencies]
+# Core arithmetic
+num-bigint = "0.4"
+num-traits = "0.2"
+num-integer = "0.1"
+
+# Optional GMP support
+rug = { version = "1.24" }
+
+# Concurrency
+rayon = "1.10"
+crossbeam = "0.8"
+crossbeam-channel = "0.5"
+
+# CLI
+clap = { version = "4", features = ["derive", "env"] }
+clap_complete = "4"
+
+# TUI
+ratatui = "0.29"
+crossterm = "0.28"
+
+# Allocation
+bumpalo = { version = "3", features = ["collections"] }
+
+# Synchronization
+parking_lot = "0.12"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Error handling
+thiserror = "2"
+anyhow = "1"
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# System info
+sysinfo = "0.32"
+
+# CLI display
+indicatif = "0.17"
+console = "0.15"
+
+# Workspace crates
+fibcalc-core = { path = "crates/fibcalc-core" }
+fibcalc-bigfft = { path = "crates/fibcalc-bigfft" }
+fibcalc-orchestration = { path = "crates/fibcalc-orchestration" }
+fibcalc-cli = { path = "crates/fibcalc-cli" }
+fibcalc-tui = { path = "crates/fibcalc-tui" }
+fibcalc-calibration = { path = "crates/fibcalc-calibration" }
+
+[workspace.lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+module_name_repetitions = "allow"
+must_use_candidate = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+cast_possible_truncation = "allow"
+cast_sign_loss = "allow"
+cast_precision_loss = "allow"
+cast_lossless = "allow"
+similar_names = "allow"
+struct_excessive_bools = "allow"
+items_after_statements = "allow"
+unused_self = "allow"
+if_not_else = "allow"
+redundant_else = "allow"
+
+[dev-dependencies]
+fibcalc-core = { path = "crates/fibcalc-core" }
+fibcalc-orchestration = { path = "crates/fibcalc-orchestration" }
+num-bigint = "0.4"
+num-traits = "0.2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[lints]
+workspace = true
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
+opt-level = 3
+
+[profile.bench]
+inherits = "release"
+debug = true

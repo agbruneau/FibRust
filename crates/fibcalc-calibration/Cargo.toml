@@ -1,0 +1,24 @@
+[package]
+name = "fibcalc-calibration"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Auto-tuning, adaptive benchmarks, and calibration profiles"
+
+[dependencies]
+fibcalc-core = { workspace = true }
+num-bigint = { workspace = true }
+rayon = { workspace = true }
+parking_lot = { workspace = true }
+tracing = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sysinfo = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3"
+
+[lints]
+workspace = true

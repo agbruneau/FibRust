@@ -1,0 +1,22 @@
+[package]
+name = "fibcalc-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "CLI output, progress display, shell completion"
+
+[dependencies]
+fibcalc-core = { workspace = true }
+fibcalc-orchestration = { workspace = true }
+num-bigint = { workspace = true }
+clap = { workspace = true }
+clap_complete = { workspace = true }
+indicatif = { workspace = true }
+console = { workspace = true }
+tracing = { workspace = true }
+thiserror = { workspace = true }
+crossbeam-channel = { workspace = true }
+
+[lints]
+workspace = true

@@ -1,0 +1,20 @@
+[package]
+name = "fibcalc-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+fibcalc-core = { path = "../crates/fibcalc-core" }
+num-bigint = "0.4"
+
+[[bin]]
+name = "fuzz_fast_doubling"
+path = "fuzz_targets/fuzz_fast_doubling.rs"
+test = false
+doc = false
+bench = false
