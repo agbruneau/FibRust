@@ -91,7 +91,10 @@ mod tests {
     #[test]
     fn cache_miss() {
         let cache = FFTCache::new(10);
-        let key = CacheKey { size: 99, shift: 128 };
+        let key = CacheKey {
+            size: 99,
+            shift: 128,
+        };
         assert!(cache.get(&key).is_none());
     }
 
@@ -176,12 +179,21 @@ mod tests {
     fn cache_multiple_different_keys() {
         let cache = FFTCache::new(100);
         for i in 0..50 {
-            cache.put(CacheKey { size: i, shift: i * 2 }, vec![vec![i as u64]]);
+            cache.put(
+                CacheKey {
+                    size: i,
+                    shift: i * 2,
+                },
+                vec![vec![i as u64]],
+            );
         }
         assert_eq!(cache.len(), 50);
 
         for i in 0..50 {
-            let val = cache.get(&CacheKey { size: i, shift: i * 2 });
+            let val = cache.get(&CacheKey {
+                size: i,
+                shift: i * 2,
+            });
             assert!(val.is_some());
             assert_eq!(val.unwrap(), vec![vec![i as u64]]);
         }
@@ -191,7 +203,10 @@ mod tests {
     fn cache_key_equality() {
         let k1 = CacheKey { size: 8, shift: 64 };
         let k2 = CacheKey { size: 8, shift: 64 };
-        let k3 = CacheKey { size: 8, shift: 128 };
+        let k3 = CacheKey {
+            size: 8,
+            shift: 128,
+        };
         assert_eq!(k1, k2);
         assert_ne!(k1, k3);
     }

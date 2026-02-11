@@ -109,10 +109,8 @@ impl DoublingStepExecutor for ParallelKaratsubaStrategy {
 
         if max_bits >= self.parallel_threshold {
             // Parallel: multiply and 2 squarings concurrently
-            let ((fk_sq, fk1_sq), f2k) = rayon::join(
-                || rayon::join(|| fk * fk, || fk1 * fk1),
-                || fk * &t,
-            );
+            let ((fk_sq, fk1_sq), f2k) =
+                rayon::join(|| rayon::join(|| fk * fk, || fk1 * fk1), || fk * &t);
             let f2k1 = fk_sq + fk1_sq;
             (f2k, f2k1)
         } else {
@@ -334,8 +332,8 @@ mod tests {
         let fk = BigUint::from(5u64);
         let fk1 = BigUint::from(8u64);
         let (f2k, f2k1) = strat.execute_doubling_step(&fk, &fk1);
-        assert_eq!(f2k, BigUint::from(55u64));   // F(10)
-        assert_eq!(f2k1, BigUint::from(89u64));  // F(11)
+        assert_eq!(f2k, BigUint::from(55u64)); // F(10)
+        assert_eq!(f2k1, BigUint::from(89u64)); // F(11)
     }
 
     #[test]
@@ -402,7 +400,7 @@ mod tests {
         let fk = BigUint::from(1u64);
         let fk1 = BigUint::from(1u64);
         let (f2k, f2k1) = strat.execute_doubling_step(&fk, &fk1);
-        assert_eq!(f2k, BigUint::from(1u64));  // F(2)
+        assert_eq!(f2k, BigUint::from(1u64)); // F(2)
         assert_eq!(f2k1, BigUint::from(2u64)); // F(3)
     }
 
@@ -412,8 +410,8 @@ mod tests {
         let fk = BigUint::from(5u64);
         let fk1 = BigUint::from(8u64);
         let (f2k, f2k1) = strat.execute_doubling_step(&fk, &fk1);
-        assert_eq!(f2k, BigUint::from(55u64));   // F(10)
-        assert_eq!(f2k1, BigUint::from(89u64));  // F(11)
+        assert_eq!(f2k, BigUint::from(55u64)); // F(10)
+        assert_eq!(f2k1, BigUint::from(89u64)); // F(11)
     }
 
     #[test]

@@ -79,7 +79,11 @@ impl FermatNum {
         let mut carry = 0u64;
         for i in 0..n {
             let a = self.data[i];
-            let b = if i < other.data.len() { other.data[i] } else { 0 };
+            let b = if i < other.data.len() {
+                other.data[i]
+            } else {
+                0
+            };
             let (sum1, c1) = a.overflowing_add(b);
             let (sum2, c2) = sum1.overflowing_add(carry);
             result.data[i] = sum2;
@@ -108,7 +112,11 @@ impl FermatNum {
         let mut borrow = 0u64;
         for i in 0..n {
             let a = self.data[i];
-            let b = if i < other.data.len() { other.data[i] } else { 0 };
+            let b = if i < other.data.len() {
+                other.data[i]
+            } else {
+                0
+            };
             let (diff1, b1) = a.overflowing_sub(b);
             let (diff2, b2) = diff1.overflowing_sub(borrow);
             result.data[i] = diff2;

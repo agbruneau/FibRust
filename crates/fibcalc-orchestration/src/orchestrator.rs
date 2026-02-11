@@ -189,14 +189,12 @@ mod tests {
 
     #[test]
     fn analyze_no_valid_results() {
-        let results = vec![
-            CalculationResult {
-                algorithm: "A".into(),
-                value: None,
-                duration: Duration::from_millis(1),
-                error: Some("failed".into()),
-            },
-        ];
+        let results = vec![CalculationResult {
+            algorithm: "A".into(),
+            value: None,
+            duration: Duration::from_millis(1),
+            error: Some("failed".into()),
+        }];
         assert!(matches!(
             analyze_comparison_results(&results),
             Err(FibError::Calculation(_))
@@ -205,14 +203,12 @@ mod tests {
 
     #[test]
     fn analyze_single_valid_result() {
-        let results = vec![
-            CalculationResult {
-                algorithm: "A".into(),
-                value: Some(BigUint::from(55u32)),
-                duration: Duration::from_millis(1),
-                error: None,
-            },
-        ];
+        let results = vec![CalculationResult {
+            algorithm: "A".into(),
+            value: Some(BigUint::from(55u32)),
+            duration: Duration::from_millis(1),
+            error: None,
+        }];
         assert!(analyze_comparison_results(&results).is_ok());
     }
 
@@ -314,7 +310,12 @@ mod tests {
         assert_eq!(results.len(), 2);
         // Both should succeed
         for r in &results {
-            assert!(r.error.is_none(), "calculator {} failed: {:?}", r.algorithm, r.error);
+            assert!(
+                r.error.is_none(),
+                "calculator {} failed: {:?}",
+                r.algorithm,
+                r.error
+            );
             assert!(r.value.is_some());
         }
         // Both should compute the same value
@@ -342,8 +343,8 @@ mod tests {
 
     #[test]
     fn execute_with_observer() {
-        use std::sync::atomic::{AtomicUsize, Ordering};
         use fibcalc_core::observer::FrozenObserver;
+        use std::sync::atomic::{AtomicUsize, Ordering};
 
         struct CountingObserver {
             count: AtomicUsize,
@@ -382,10 +383,7 @@ mod tests {
         let results = execute_calculations(&[calc], 10, &opts, &cancel, None);
         assert_eq!(results.len(), 1);
         assert!(results[0].error.is_none());
-        assert_eq!(
-            results[0].value.as_ref().unwrap(),
-            &BigUint::from(55u32)
-        );
+        assert_eq!(results[0].value.as_ref().unwrap(), &BigUint::from(55u32));
     }
 
     #[test]
@@ -433,14 +431,12 @@ mod tests {
     #[test]
     fn analyze_result_with_value_and_error_is_excluded() {
         // A result with both value and error set should be excluded (error is Some)
-        let results = vec![
-            CalculationResult {
-                algorithm: "A".into(),
-                value: Some(BigUint::from(55u32)),
-                duration: Duration::from_millis(1),
-                error: Some("partial".into()),
-            },
-        ];
+        let results = vec![CalculationResult {
+            algorithm: "A".into(),
+            value: Some(BigUint::from(55u32)),
+            duration: Duration::from_millis(1),
+            error: Some("partial".into()),
+        }];
         // The filter requires error.is_none(), so this counts as no valid results
         assert!(matches!(
             analyze_comparison_results(&results),

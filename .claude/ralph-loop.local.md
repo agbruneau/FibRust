@@ -3,7 +3,7 @@ active: true
 iteration: 1
 max_iterations: 0
 completion_promise: null
-started_at: "2026-02-11T11:05:46Z"
+started_at: "2026-02-11T21:01:43Z"
 ---
 
-Exploiter des agents teams afin de rédiger une couverture de plus de 80% de tests de ce github repo. Exécuter et valider ces tests. Corriger toutes les anomalies identifiées
+Déterminer la listes des livrables de documentation à produire pour ce github, le tout en conformité avec les meilleurs pratiques de l'industrie pour un Repo Rust. Pour chacun des livrables, exploiter des agents teams pour en assurer la rédaction de chacun d'eux, le tout déposé dans le répertoire @docs\ 

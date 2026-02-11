@@ -274,7 +274,8 @@ mod tests {
 
     #[test]
     fn save_to_nonexistent_directory_fails() {
-        let path = std::path::PathBuf::from("/tmp/definitely_nonexistent_dir_1234567890/sub/profile.json");
+        let path =
+            std::path::PathBuf::from("/tmp/definitely_nonexistent_dir_1234567890/sub/profile.json");
         let p = CalibrationProfile::default();
         let result = save_to_path(&p, &path);
         assert!(result.is_err());
@@ -284,7 +285,10 @@ mod tests {
     fn cwd_profile_path_starts_with_dot() {
         let path = cwd_profile_path();
         let name = path.file_name().unwrap().to_string_lossy();
-        assert!(name.starts_with('.'), "cwd profile should be a hidden file (starts with '.')");
+        assert!(
+            name.starts_with('.'),
+            "cwd profile should be a hidden file (starts with '.')"
+        );
     }
 
     #[test]

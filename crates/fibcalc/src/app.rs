@@ -182,9 +182,7 @@ fn run_tui(config: &AppConfig) -> Result<()> {
             }
             collector.refresh();
             if metrics_tx
-                .send(fibcalc_tui::TuiMessage::SystemMetrics(
-                    collector.snapshot(),
-                ))
+                .send(fibcalc_tui::TuiMessage::SystemMetrics(collector.snapshot()))
                 .is_err()
             {
                 break; // channel closed, TUI exited
@@ -357,7 +355,11 @@ mod tests {
     fn run_cli_single_algorithm_fast() {
         let config = test_config();
         let result = execute_cli_logic(&config);
-        assert!(result.is_ok(), "run_cli with algo=fast should succeed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "run_cli with algo=fast should succeed: {:?}",
+            result.err()
+        );
     }
 
     #[test]
@@ -366,7 +368,11 @@ mod tests {
         config.algo = "all".to_string();
         config.n = 50;
         let result = execute_cli_logic(&config);
-        assert!(result.is_ok(), "run_cli with algo=all should succeed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "run_cli with algo=all should succeed: {:?}",
+            result.err()
+        );
     }
 
     #[test]
@@ -375,7 +381,11 @@ mod tests {
         config.algo = "matrix".to_string();
         config.n = 50;
         let result = execute_cli_logic(&config);
-        assert!(result.is_ok(), "run_cli with algo=matrix should succeed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "run_cli with algo=matrix should succeed: {:?}",
+            result.err()
+        );
     }
 
     #[test]
@@ -384,7 +394,11 @@ mod tests {
         config.algo = "fft".to_string();
         config.n = 50;
         let result = execute_cli_logic(&config);
-        assert!(result.is_ok(), "run_cli with algo=fft should succeed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "run_cli with algo=fft should succeed: {:?}",
+            result.err()
+        );
     }
 
     #[test]
@@ -450,7 +464,10 @@ mod tests {
         let result = execute_cli_logic(&config);
         assert!(result.is_err(), "Should fail when memory limit is exceeded");
         let err_msg = result.unwrap_err().to_string();
-        assert!(err_msg.contains("exceeds limit"), "Error should mention memory limit: {err_msg}");
+        assert!(
+            err_msg.contains("exceeds limit"),
+            "Error should mention memory limit: {err_msg}"
+        );
     }
 
     #[test]
@@ -517,7 +534,11 @@ mod tests {
         config.auto_calibrate = true;
         config.quiet = true;
         let result = run(&config);
-        assert!(result.is_ok(), "auto_calibrate should succeed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "auto_calibrate should succeed: {:?}",
+            result.err()
+        );
     }
 
     #[test]
@@ -526,7 +547,11 @@ mod tests {
         config.calibrate = true;
         config.quiet = true;
         let result = run_calibration(&config);
-        assert!(result.is_ok(), "Full calibration should succeed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Full calibration should succeed: {:?}",
+            result.err()
+        );
     }
 
     #[test]
@@ -535,7 +560,11 @@ mod tests {
         config.auto_calibrate = true;
         config.quiet = true;
         let result = run_calibration(&config);
-        assert!(result.is_ok(), "Auto calibration should succeed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Auto calibration should succeed: {:?}",
+            result.err()
+        );
     }
 
     #[test]
@@ -567,9 +596,15 @@ mod tests {
     fn opts_from_config_normalizes_zeros() {
         let config = test_config();
         let opts = opts_from_config(&config);
-        assert!(opts.parallel_threshold > 0, "Should apply default parallel threshold");
+        assert!(
+            opts.parallel_threshold > 0,
+            "Should apply default parallel threshold"
+        );
         assert!(opts.fft_threshold > 0, "Should apply default FFT threshold");
-        assert!(opts.strassen_threshold > 0, "Should apply default Strassen threshold");
+        assert!(
+            opts.strassen_threshold > 0,
+            "Should apply default Strassen threshold"
+        );
     }
 
     #[test]

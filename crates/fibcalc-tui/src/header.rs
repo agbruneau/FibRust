@@ -57,7 +57,10 @@ mod tests {
                 all_content.push_str(buf.buffer[(x, y)].symbol());
             }
         }
-        assert!(all_content.contains("N=42"), "Buffer did not contain N=42: {all_content}");
+        assert!(
+            all_content.contains("N=42"),
+            "Buffer did not contain N=42: {all_content}"
+        );
     }
 
     #[test]
@@ -77,7 +80,10 @@ mod tests {
                 all_content.push_str(buf.buffer[(x, y)].symbol());
             }
         }
-        assert!(all_content.contains("FFT-Based"), "Buffer did not contain FFT-Based: {all_content}");
+        assert!(
+            all_content.contains("FFT-Based"),
+            "Buffer did not contain FFT-Based: {all_content}"
+        );
     }
 
     #[test]

@@ -41,7 +41,10 @@ impl Poly {
                     let copy_len = (copy_end - start_limb).min(fermat_limbs);
                     data[..copy_len].copy_from_slice(&digits[start_limb..start_limb + copy_len]);
                 }
-                coeffs.push(FermatNum { data, shift: fermat_shift });
+                coeffs.push(FermatNum {
+                    data,
+                    shift: fermat_shift,
+                });
             }
         } else {
             // General path: extract arbitrary bit-aligned pieces

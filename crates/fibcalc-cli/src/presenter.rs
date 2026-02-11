@@ -223,14 +223,12 @@ mod tests {
     #[test]
     fn presenter_present_comparison_quiet() {
         let presenter = CLIResultPresenter::new(false, true);
-        let results = vec![
-            CalculationResult {
-                algorithm: "FastDoubling".into(),
-                value: Some(BigUint::from(55u64)),
-                duration: Duration::from_millis(5),
-                error: None,
-            },
-        ];
+        let results = vec![CalculationResult {
+            algorithm: "FastDoubling".into(),
+            value: Some(BigUint::from(55u64)),
+            duration: Duration::from_millis(5),
+            error: None,
+        }];
         presenter.present_comparison(&results);
         // Should not print anything in quiet mode
     }
@@ -297,6 +295,12 @@ mod tests {
     fn presenter_present_result_large_n() {
         let presenter = CLIResultPresenter::new(false, false);
         let result = BigUint::from(1u64);
-        presenter.present_result("FastDoubling", 1_000_000, &result, Duration::from_secs(30), true);
+        presenter.present_result(
+            "FastDoubling",
+            1_000_000,
+            &result,
+            Duration::from_secs(30),
+            true,
+        );
     }
 }

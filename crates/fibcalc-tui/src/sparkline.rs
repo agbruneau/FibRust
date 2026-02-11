@@ -391,7 +391,9 @@ mod tests {
     fn render_braille_sparkline_large_data() {
         let backend = TestBackend::new(60, 12);
         let mut terminal = Terminal::new(backend).unwrap();
-        let data: Vec<f64> = (0..100).map(|i| (i as f64 * 0.1).sin() * 50.0 + 50.0).collect();
+        let data: Vec<f64> = (0..100)
+            .map(|i| (i as f64 * 0.1).sin() * 50.0 + 50.0)
+            .collect();
         terminal
             .draw(|frame| {
                 let area = frame.area();

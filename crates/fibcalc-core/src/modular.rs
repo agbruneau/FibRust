@@ -195,7 +195,7 @@ mod tests {
         let cancel = CancellationToken::new();
         let observer = NoOpObserver::new();
         let modulus = BigUint::from(256u64); // 2^8
-        // F(10) = 55, 55 mod 256 = 55
+                                             // F(10) = 55, 55 mod 256 = 55
         let result = FastDoublingMod::fibonacci_mod(10, &modulus, &cancel, &observer, 0).unwrap();
         assert_eq!(result, BigUint::from(55u64));
     }
@@ -205,7 +205,7 @@ mod tests {
         let cancel = CancellationToken::new();
         let observer = NoOpObserver::new();
         let modulus = BigUint::from(1_000_000_007u64); // large prime
-        // F(1000) mod 1_000_000_007 — just check it doesn't panic and produces a value < modulus
+                                                       // F(1000) mod 1_000_000_007 — just check it doesn't panic and produces a value < modulus
         let result = FastDoublingMod::fibonacci_mod(1000, &modulus, &cancel, &observer, 0).unwrap();
         assert!(result < modulus);
     }
@@ -254,7 +254,9 @@ mod tests {
             ..Default::default()
         };
         // F(100) last 6 digits = 915075
-        let result = calc.calculate_core(&cancel, &observer, 0, 100, &opts).unwrap();
+        let result = calc
+            .calculate_core(&cancel, &observer, 0, 100, &opts)
+            .unwrap();
         assert_eq!(result, BigUint::from(915075u64));
     }
 
@@ -279,10 +281,10 @@ mod tests {
         let cases: Vec<(u64, u64)> = vec![
             (0, 0),
             (1, 1),
-            (5, 5),      // F(5) = 5
-            (10, 55),     // F(10) = 55
-            (20, 6765),   // F(20) = 6765
-            (50, 5075),   // F(50) = 12586269025 -> last 4 = 9025... let me recheck
+            (5, 5),     // F(5) = 5
+            (10, 55),   // F(10) = 55
+            (20, 6765), // F(20) = 6765
+            (50, 5075), // F(50) = 12586269025 -> last 4 = 9025... let me recheck
         ];
 
         for (n, expected_last4) in &cases[..5] {

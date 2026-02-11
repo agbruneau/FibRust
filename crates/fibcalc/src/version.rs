@@ -32,9 +32,15 @@ mod tests {
     fn full_version_contains_version_and_rust() {
         let fv = full_version();
         // Should contain the package version
-        assert!(fv.contains(version()), "full_version should contain the package version");
+        assert!(
+            fv.contains(version()),
+            "full_version should contain the package version"
+        );
         // Should contain "fibcalc"
-        assert!(fv.starts_with("fibcalc "), "full_version should start with 'fibcalc '");
+        assert!(
+            fv.starts_with("fibcalc "),
+            "full_version should start with 'fibcalc '"
+        );
         // Should contain "rust" somewhere
         assert!(fv.contains("rust"), "full_version should contain 'rust'");
     }

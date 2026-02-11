@@ -46,12 +46,7 @@ mod tests {
     use ratatui::backend::TestBackend;
     use ratatui::Terminal;
 
-    fn render_in_test_terminal(
-        width: u16,
-        height: u16,
-        algorithms: &[String],
-        progress: &[f64],
-    ) {
+    fn render_in_test_terminal(width: u16, height: u16, algorithms: &[String], progress: &[f64]) {
         let backend = TestBackend::new(width, height);
         let mut terminal = Terminal::new(backend).unwrap();
         terminal
