@@ -10,13 +10,13 @@
 use std::cell::RefCell;
 
 use num_bigint::BigUint;
+use num_traits::{One, Zero};
 use parking_lot::Mutex;
 
 use crate::calculator::{CoreCalculator, FibError};
 use crate::observer::ProgressObserver;
 use crate::options::Options;
 use crate::progress::{CancellationToken, ProgressUpdate};
-use crate::strategy::{DoublingStepExecutor, ParallelKaratsubaStrategy};
 
 /// State for the Fast Doubling computation, enabling pool reuse.
 pub struct CalculationState {
@@ -42,11 +42,11 @@ impl CalculationState {
 
     /// Reset state for reuse.
     pub fn reset(&mut self) {
-        self.fk = BigUint::ZERO;
-        self.fk1 = BigUint::from(1u32);
-        self.t1 = BigUint::ZERO;
-        self.t2 = BigUint::ZERO;
-        self.t3 = BigUint::ZERO;
+        self.fk.set_zero();
+        self.fk1.set_one();
+        self.t1.set_zero();
+        self.t2.set_zero();
+        self.t3.set_zero();
     }
 }
 
@@ -162,7 +162,7 @@ impl OptimizedFastDoubling {
         let mut state = tl_acquire_state();
 
         let frozen = observer.freeze();
-        let strategy = ParallelKaratsubaStrategy::new(opts.parallel_threshold);
+        // Inline strategy logic to reuse CalculationState buffers
 
         let result = (|| {
             for i in (0..num_bits).rev() {
@@ -172,15 +172,40 @@ impl OptimizedFastDoubling {
                 }
 
                 // Doubling step: compute F(2k) and F(2k+1)
-                let (f2k, f2k1) = strategy.execute_doubling_step(&state.fk, &state.fk1);
+                // t = (fk1 << 1) - fk
+                // Reuse state.t1 for t to avoid allocation
+                state.t1.clone_from(&state.fk1);
+                state.t1 <<= 1;
+                state.t1 -= &state.fk;
+
+                let max_bits = state.fk.bits().max(state.fk1.bits()) as usize;
+
+                let (f2k, f2k1) = if max_bits >= opts.parallel_threshold {
+                    // Parallel: multiply and 2 squarings concurrently
+                    let ((fk_sq, fk1_sq), f2k) = rayon::join(
+                        || rayon::join(|| &state.fk * &state.fk, || &state.fk1 * &state.fk1),
+                        || &state.fk * &state.t1,
+                    );
+                    (f2k, fk_sq + fk1_sq)
+                } else {
+                    // Sequential for small operands
+                    let f2k = &state.fk * &state.t1;
+                    let f2k1 = (&state.fk * &state.fk) + (&state.fk1 * &state.fk1);
+                    (f2k, f2k1)
+                };
 
                 state.fk = f2k;
                 state.fk1 = f2k1;
 
                 // Conditional addition step
                 if (n >> i) & 1 == 1 {
-                    let sum = &state.fk + &state.fk1;
-                    state.fk = std::mem::replace(&mut state.fk1, sum);
+                    // F(2k+1) = F(2k) + F(2k+1) -> become new F(2k+2)
+                    // F(2k) -> become F(2k+1)
+
+                    // Swap ensures fk holds old_fk1 (new F(2k+1))
+                    std::mem::swap(&mut state.fk, &mut state.fk1);
+                    // Add ensures fk1 holds old_fk + old_fk1 (new F(2k+2))
+                    state.fk1 += &state.fk;
                 }
 
                 // Progress reporting
