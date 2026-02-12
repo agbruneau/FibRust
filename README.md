@@ -2,7 +2,7 @@
 
 ![License](https://img.shields.io/badge/license-Apache--2.0-blue)
 ![MSRV](https://img.shields.io/badge/MSRV-1.80%2B-orange)
-![Tests](https://img.shields.io/badge/tests-680%2B-brightgreen)
+![Tests](https://img.shields.io/badge/tests-689%2B-brightgreen)
 ![Coverage](https://img.shields.io/badge/coverage-96.1%25-brightgreen)
 
 High-performance Fibonacci calculator written in Rust. Computes arbitrarily large Fibonacci numbers using three algorithms with automatic cross-validation. Ported from [FibGo](https://github.com/agbruneau/Fibonacci) (Go).
@@ -24,6 +24,7 @@ High-performance Fibonacci calculator written in Rust. Computes arbitrarily larg
 - [Configuration](#configuration)
 - [Documentation](#documentation)
 - [Development](#development)
+- [Cross-Compilation](#cross-compilation)
 - [References](#references)
 - [License](#license)
 
@@ -47,6 +48,7 @@ The complete specification is documented in [docs/PRD.md](docs/PRD.md) (~9,500 l
 - **Massive scale**: Compute F(100,000,000)+ with configurable memory limits and timeouts
 - **Optional GMP support**: Link against libgmp via the `rug` crate for even faster arithmetic
 - **Shell completion**: Generated for bash, zsh, fish, PowerShell, and elvish
+- **Zero unsafe code**: `unsafe_code = "forbid"` enforced at workspace level
 
 ## Quick Start
 
@@ -66,13 +68,15 @@ cargo run --release -p fibcalc -- --tui
 
 ## Performance
 
-Benchmarked on a single run (Windows 11, release mode with LTO):
+Benchmarked on a single run (Windows 11, release mode with LTO, native CPU):
 
 | N | Fast Doubling | Matrix Exp. | FFT-Based | Digits |
 |---|---------------|-------------|-----------|--------|
 | 1,000 | 21 us | - | - | 209 |
 | 10,000 | 124 us | 120 us | 68 us | 2,090 |
 | 1,000,000 | 5.8 ms | 26.7 ms | 11.5 ms | 208,988 |
+
+> **Note**: Builds use `-C target-cpu=native` via `.cargo/config.toml`, so binaries are optimized for the local CPU and may not be portable.
 
 ## Installation
 
@@ -91,26 +95,36 @@ cargo build --release
 cargo build --release --features gmp
 ```
 
+### Cargo Features
+
+| Feature | Description |
+|---------|-------------|
+| `default` | Pure Rust, no external system dependencies |
+| `gmp` | GMP support via `rug` crate (`dep:rug`). LGPL, requires libgmp. |
+
 ## Usage
 
 ```
 fibcalc [OPTIONS]
 
 Options:
-  -n, --n <N>              Fibonacci number to compute [default: 100000000]
-      --algo <ALGO>        Algorithm: fast, matrix, fft, or all [default: all]
-  -c, --calculate          Calculate and display the result
-  -v, --verbose            Verbose output
-  -d, --details            Show detailed information
-  -o, --output <OUTPUT>    Output file path
-  -q, --quiet              Quiet mode (only output the number)
-      --tui                Launch interactive TUI
-      --calibrate          Run full calibration
-      --auto-calibrate     Run automatic calibration
-      --timeout <TIMEOUT>  Timeout duration (e.g., "5m", "1h") [default: 5m]
-      --last-digits <K>    Compute only last K digits
-      --memory-limit <LIM> Memory limit (e.g., "8G", "512M")
-      --completion <SHELL> Generate shell completion (bash, zsh, fish, powershell, elvish)
+  -n, --n <N>                 Fibonacci number to compute [default: 100000000]
+      --algo <ALGO>           Algorithm: fast, matrix, fft, or all [default: all]
+  -c, --calculate             Calculate and display the result
+  -v, --verbose               Verbose output
+  -d, --details               Show detailed information
+  -o, --output <OUTPUT>       Output file path
+  -q, --quiet                 Quiet mode (only output the number)
+      --tui                   Launch interactive TUI
+      --calibrate             Run full calibration
+      --auto-calibrate        Run automatic calibration
+      --timeout <TIMEOUT>     Timeout duration (e.g., "5m", "1h") [default: 5m]
+      --threshold <BITS>      Parallel multiplication threshold in bits
+      --fft-threshold <BITS>  FFT multiplication threshold in bits
+      --strassen-threshold <BITS>  Strassen multiplication threshold in bits
+      --last-digits <K>       Compute only last K digits
+      --memory-limit <LIM>    Memory limit (e.g., "8G", "512M")
+      --completion <SHELL>    Generate shell completion (bash, zsh, fish, powershell, elvish)
 ```
 
 ### Examples
@@ -130,52 +144,94 @@ fibcalc -n 10000000 --last-digits 100 -c
 
 # Run with memory limit and timeout
 fibcalc -n 100000000 --memory-limit 4G --timeout 10m
+
+# Generate shell completion
+fibcalc --completion bash > fibcalc.bash
 ```
 
 ## Architecture
 
-Cargo workspace with 7 crates in a four-layer architecture (Rust 2021 edition):
+Cargo workspace with 7 crates in a four-layer architecture (Rust 2021 edition, resolver v2):
 
 ```
 fibcalc (binary)              -- entry point, config, error handling
     |
 fibcalc-orchestration         -- parallel execution, result aggregation
     |
-fibcalc-core, fibcalc-bigfft  -- algorithms, FFT multiplication
+fibcalc-core + fibcalc-bigfft -- algorithms, FFT multiplication
     |
-fibcalc-cli, fibcalc-tui      -- CLI output / TUI dashboard
+fibcalc-cli / fibcalc-tui     -- CLI output / TUI dashboard
 fibcalc-calibration            -- auto-tuning, adaptive benchmarks
 ```
 
-| Crate | Role |
-|-------|------|
-| `fibcalc` | Binary entry point, app config, error handling |
-| `fibcalc-core` | Fibonacci algorithms, strategies, observers, dynamic thresholds |
-| `fibcalc-bigfft` | FFT multiplication, Fermat numbers, transform cache, bump allocator |
-| `fibcalc-orchestration` | Parallel execution, calculator selection, result analysis |
-| `fibcalc-cli` | CLI output, progress bars, ETA, shell completion |
-| `fibcalc-tui` | Interactive TUI dashboard (ratatui + crossterm) |
-| `fibcalc-calibration` | Auto-tuning, adaptive benchmarks, calibration profiles |
+| Crate | Lines | Role |
+|-------|-------|------|
+| `fibcalc` | ~950 | Binary entry point, clap config, app orchestration, error handling |
+| `fibcalc-core` | ~5,000 | Fibonacci algorithms, strategies, observers, dynamic thresholds, arena, memory budget |
+| `fibcalc-bigfft` | ~2,500 | FFT multiplication, Fermat numbers, transform cache, bump allocator, pools |
+| `fibcalc-orchestration` | ~550 | Parallel execution, calculator selection, result analysis |
+| `fibcalc-cli` | ~700 | CLI output, progress bars (indicatif), ETA, shell completion |
+| `fibcalc-tui` | ~3,400 | Interactive TUI dashboard (ratatui + crossterm, Elm architecture) |
+| `fibcalc-calibration` | ~1,200 | Auto-tuning, adaptive benchmarks, calibration profiles |
+
+**Total**: ~14,400 lines of Rust across 76 source files.
+
+### Key Traits
+
+| Trait | File | Purpose |
+|-------|------|---------|
+| `Calculator` | `fibcalc-core/src/calculator.rs` | Public trait for orchestration (`calculate()`, `name()`) |
+| `CoreCalculator` | `fibcalc-core/src/calculator.rs` | Internal trait for algorithm implementations |
+| `Multiplier` | `fibcalc-core/src/strategy.rs` | Narrow interface for multiply/square |
+| `DoublingStepExecutor` | `fibcalc-core/src/strategy.rs` | Extended strategy for optimized doubling steps |
+| `ProgressObserver` | `fibcalc-core/src/observer.rs` | Observer pattern with lock-free `Freeze()` snapshots |
+| `CalculatorFactory` | `fibcalc-core/src/registry.rs` | Factory with lazy creation and `RwLock<HashMap>` cache |
+
+### Crate Dependency Graph
+
+```
+fibcalc
+├── fibcalc-core
+│   └── fibcalc-bigfft
+├── fibcalc-orchestration
+│   └── fibcalc-core
+├── fibcalc-cli
+│   ├── fibcalc-core
+│   └── fibcalc-orchestration
+├── fibcalc-tui
+│   ├── fibcalc-core
+│   └── fibcalc-orchestration
+└── fibcalc-calibration
+    └── fibcalc-core
+```
 
 ## Project Structure
 
 ```
 FibRust/
-├── Cargo.toml                  # Workspace root
+├── Cargo.toml                  # Workspace root (7 members)
+├── deny.toml                   # License & security policy
+├── .cargo/config.toml          # Build flags (target-cpu=native)
 ├── crates/
-│   ├── fibcalc/                # Binary entry point (4 modules, ~500 lines)
-│   ├── fibcalc-core/           # Core algorithms (26 modules, ~2,600 lines)
-│   ├── fibcalc-bigfft/         # FFT multiplication (14 modules, ~1,300 lines)
-│   ├── fibcalc-orchestration/  # Parallel execution (4 modules, ~540 lines)
-│   ├── fibcalc-cli/            # CLI output (6 modules, ~600 lines)
-│   ├── fibcalc-tui/            # TUI dashboard (12 modules, ~3,700 lines)
-│   └── fibcalc-calibration/    # Auto-tuning (7 modules, ~600 lines)
+│   ├── fibcalc/                # Binary entry point (6 files, ~950 lines)
+│   │   ├── src/                #   main.rs, lib.rs, app.rs, config.rs, errors.rs, version.rs
+│   │   └── tests/              #   e2e.rs, proptest.rs
+│   ├── fibcalc-core/           # Core algorithms (27 files, ~5,000 lines)
+│   │   ├── src/                #   calculator, fastdoubling, matrix, fft_based, strategy, observer, ...
+│   │   ├── tests/              #   properties.rs
+│   │   └── benches/            #   fibonacci.rs (criterion)
+│   ├── fibcalc-bigfft/         # FFT multiplication (14 files, ~2,500 lines)
+│   ├── fibcalc-orchestration/  # Parallel execution (4 files, ~550 lines)
+│   ├── fibcalc-cli/            # CLI output (6 files, ~700 lines)
+│   ├── fibcalc-tui/            # TUI dashboard (12 files, ~3,400 lines)
+│   └── fibcalc-calibration/    # Auto-tuning (7 files, ~1,200 lines)
 ├── tests/
-│   ├── testdata/               # Golden test data (fibonacci_golden.json)
-│   └── golden.rs               # Workspace-level golden tests
-├── fuzz/                       # Fuzz targets (cargo-fuzz)
-├── docs/                       # Technical documentation (10 files)
-└── .cargo/config.toml          # Build configuration (LTO, native CPU)
+│   ├── golden.rs               # Workspace-level golden file tests
+│   └── testdata/
+│       └── fibonacci_golden.json  # Golden values F(0)..F(1,000,000)
+├── fuzz/
+│   └── fuzz_targets/           # 4 fuzz targets (fast_doubling, matrix, fft, cross_algorithm)
+└── docs/                       # 10 technical documents
 ```
 
 ## Design Patterns
@@ -195,24 +251,27 @@ The project implements several GoF and systems patterns mapped from Go idioms to
 
 ### Fast Doubling
 
-Uses the identities F(2k) = F(k)[2F(k+1) - F(k)] and F(2k+1) = F(k)^2 + F(k+1)^2 to compute F(n) in O(log n) multiplications. Generally the fastest algorithm.
+Uses the identities F(2k) = F(k)[2F(k+1) - F(k)] and F(2k+1) = F(k)^2 + F(k+1)^2 to compute F(n) in O(log n) multiplications. Generally the fastest algorithm for most input sizes.
 
 ### Matrix Exponentiation
 
-Raises the matrix [[1,1],[1,0]] to the nth power using binary exponentiation. O(log n) matrix multiplications.
+Raises the matrix [[1,1],[1,0]] to the nth power using binary exponentiation. O(log n) matrix multiplications. Provides independent cross-validation.
 
 ### FFT-Based
 
 Fast Doubling with FFT-accelerated big-number multiplication using Fermat Number Transform. Faster for very large n where multiplication cost dominates.
 
+See [docs/ALGORITHMS.md](docs/ALGORITHMS.md) for mathematical foundations, proofs, and complexity analysis.
+
 ## Testing
 
 ```bash
-cargo test --workspace               # All tests (680+)
+cargo test --workspace               # All tests (689)
 cargo test --lib                      # Unit tests only
 cargo test --test golden              # Golden file tests
-cargo test --test e2e                 # End-to-end tests
+cargo test --test e2e                 # End-to-end CLI tests
 cargo test -p fibcalc-core            # Tests for a specific crate
+cargo test -- --nocapture             # With stdout output
 ```
 
 ### Test Coverage
@@ -221,23 +280,24 @@ cargo test -p fibcalc-core            # Tests for a specific crate
 
 | Crate | Tests | Line Coverage |
 |-------|-------|---------------|
-| `fibcalc-core` | 182 | 96-100% |
+| `fibcalc-core` | 187 | 96-100% |
 | `fibcalc-tui` | 171 | 94-100% |
 | `fibcalc-bigfft` | 121 | 87-100% |
 | `fibcalc-calibration` | 43 | 87-100% |
-| `fibcalc` | 74 | 80-100% |
-| `fibcalc-orchestration` | 21 | 95-100% |
+| `fibcalc` | 39 | 80-100% |
 | `fibcalc-cli` | 48 | 95-100% |
-| **Workspace golden** | 17 | -- |
+| `fibcalc-orchestration` | 20 | 95-100% |
+| **Workspace (golden + e2e + proptest)** | 44 | -- |
+| **Doc-tests** | 9 | -- |
 
 ### Test Types
 
-- **Unit tests**: 625+ inline tests across all modules
-- **Integration tests**: Golden file validation against known Fibonacci values (F(0) to F(1,000,000))
-- **End-to-end tests**: 23 CLI tests via `assert_cmd` (all modes, error handling)
+- **Unit tests**: Inline tests across all modules (table-driven)
+- **Integration tests**: Golden file validation against known Fibonacci values F(0) to F(1,000,000)
+- **End-to-end tests**: 23 CLI tests via `assert_cmd` covering all modes and error handling
 - **Property-based tests**: `proptest` for algorithm agreement and recurrence verification
-- **Fuzz testing**: `cargo-fuzz` target for Fast Doubling
-- **Benchmarks**: `criterion` suite for all 3 algorithms at multiple input sizes
+- **Fuzz testing**: 4 `cargo-fuzz` targets (fast doubling, matrix, fft, cross-algorithm)
+- **Benchmarks**: `criterion` suite with HTML reports for all 3 algorithms at multiple input sizes
 
 ```bash
 # Measure coverage
@@ -250,21 +310,45 @@ cargo llvm-cov --workspace --html   # HTML report in target/llvm-cov/html/
 
 | Tool | Purpose | Command |
 |------|---------|---------|
-| `cargo clippy` | Linting with `pedantic` level | `cargo clippy -- -W clippy::pedantic` |
+| `cargo clippy` | Linting (`pedantic` level, 0 warnings target) | `cargo clippy -- -W clippy::pedantic` |
 | `cargo fmt` | Formatting enforcement | `cargo fmt --check` |
 | `cargo audit` | Security vulnerability detection | `cargo audit` |
 | `cargo deny` | License compatibility via `deny.toml` | `cargo deny check` |
 | `cargo fuzz` | Fuzz testing for edge cases | `cargo fuzz run fuzz_fast_doubling` |
-| `cargo geiger` | Unsafe code audit (target: <= 5 blocks) | `cargo geiger` |
+| `cargo geiger` | Unsafe code audit | `cargo geiger` |
+
+### Build Profiles
+
+The release profile enables LTO (link-time optimization), single codegen unit, symbol stripping, `opt-level = 3`, `panic = "abort"`, and overflow checks. The bench profile inherits from release but keeps debug symbols for profiling.
+
+### Linting Policy
+
+- `unsafe_code = "forbid"` — no unsafe code anywhere in the workspace
+- `clippy::pedantic` — warnings on all pedantic lints with [specific exceptions](Cargo.toml) for mathematical variable naming, module repetitions, and documentation
+
+### License Policy (`deny.toml`)
+
+Allowed licenses: MIT, Apache-2.0, BSD-2/3-Clause, ISC, Unicode, Zlib, BSL-1.0, CC0-1.0, MPL-2.0. Unlicensed dependencies are denied. Copyleft is warned.
 
 ## Configuration
 
 Configuration precedence: CLI flags > Environment variables (`FIBCALC_*`) > Adaptive calibration > Static defaults.
 
-Default thresholds:
-- Parallel multiplication: 4,096 bits
-- FFT multiplication: 500,000 bits
-- Strassen multiplication: 3,072 bits
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| Parallel threshold | 4,096 bits | Switch to parallel multiplication |
+| FFT threshold | 500,000 bits | Switch to FFT multiplication |
+| Strassen threshold | 3,072 bits | Switch to Strassen multiplication |
+
+The calibration system auto-tunes these thresholds per hardware. Profiles are stored in `.fibcalc_calibration.json` (gitignored) with CPU model, core count, and measured optimal thresholds.
+
+```bash
+# Run auto-calibration
+fibcalc --auto-calibrate
+
+# Run full calibration (more thorough)
+fibcalc --calibrate
+```
 
 ## Documentation
 
@@ -284,13 +368,58 @@ Default thresholds:
 ## Development
 
 ```bash
+# Lint & format
 cargo clippy -- -W clippy::pedantic  # Strict linting
 cargo fmt --check                    # Check formatting
-cargo bench                          # Criterion benchmarks
+cargo fmt                            # Auto-format
+
+# Benchmarks
+cargo bench                          # All criterion benchmarks (HTML reports)
 cargo bench -- "FastDoubling"        # Specific benchmark
+
+# Security & licensing
 cargo audit                          # Security audit
 cargo deny check                     # License compatibility
+
+# Fuzz testing
+cargo fuzz run fuzz_fast_doubling -- -max_total_time=30
+cargo fuzz run fuzz_matrix -- -max_total_time=30
+cargo fuzz run fuzz_fft -- -max_total_time=30
+cargo fuzz run fuzz_cross_algorithm -- -max_total_time=30
 ```
+
+### Key Dependencies
+
+| Crate | Role |
+|-------|------|
+| `num-bigint` / `num-traits` | Big number arithmetic (pure Rust, default) |
+| `rug` | GMP bindings (optional `gmp` feature, LGPL) |
+| `rayon` | Work-stealing parallelism |
+| `crossbeam` / `crossbeam-channel` | Channels and concurrent primitives |
+| `ratatui` + `crossterm` | Interactive TUI |
+| `clap` + `clap_complete` | CLI parsing + shell completion |
+| `bumpalo` | Bump allocator for FFT temporaries |
+| `parking_lot` | Fast mutexes/RwLocks |
+| `tracing` + `tracing-subscriber` | Structured logging with env-filter |
+| `thiserror` / `anyhow` | Error derivation / contextual errors |
+| `serde` + `serde_json` | Serialization (calibration profiles) |
+| `indicatif` + `console` | Progress bars and terminal utilities |
+| `sysinfo` | CPU/system information for calibration |
+| `criterion` | Benchmarks with HTML reports (dev) |
+| `proptest` | Property-based testing (dev) |
+| `assert_cmd` + `predicates` | E2E CLI testing (dev) |
+
+## Cross-Compilation
+
+| Target | Priority |
+|--------|----------|
+| `x86_64-unknown-linux-gnu` | P0 |
+| `x86_64-unknown-linux-musl` | P1 |
+| `x86_64-pc-windows-msvc` | P1 |
+| `x86_64-apple-darwin` | P1 |
+| `aarch64-apple-darwin` | P1 |
+
+> **Note**: Remove `-C target-cpu=native` from `.cargo/config.toml` when cross-compiling. See [docs/CROSS_COMPILATION.md](docs/CROSS_COMPILATION.md) for detailed per-platform instructions.
 
 ## References
 
