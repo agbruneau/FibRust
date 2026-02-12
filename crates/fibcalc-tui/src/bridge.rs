@@ -41,15 +41,22 @@ impl ProgressReporter for TUIProgressReporter {
 /// Core-level progress observer that forwards updates to the TUI channel.
 ///
 /// Implements `ProgressObserver` (fibcalc-core trait) so it can be passed
-/// directly to `execute_calculations_with_observer`.
+/// directly to `execute_calculations_with_observer`. Also sends `Log`
+/// messages at key milestones (algorithm start, 25%, 50%, 75%) so the
+/// logs panel is populated during computation.
 pub struct TuiBridgeObserver {
     tx: Sender<TuiMessage>,
+    /// Tracks the last reported milestone per algorithm (by calc_index).
+    milestones: parking_lot::Mutex<std::collections::HashMap<usize, u8>>,
 }
 
 impl TuiBridgeObserver {
     #[must_use]
     pub fn new(tx: Sender<TuiMessage>) -> Self {
-        Self { tx }
+        Self {
+            tx,
+            milestones: parking_lot::Mutex::new(std::collections::HashMap::new()),
+        }
     }
 }
 
@@ -60,6 +67,30 @@ impl ProgressObserver for TuiBridgeObserver {
             progress: update.progress,
             algorithm: update.algorithm.clone(),
         });
+
+        // Send log messages at milestones
+        let mut milestones = self.milestones.lock();
+        let last = milestones.entry(update.calc_index).or_insert(u8::MAX);
+        let pct = (update.progress * 100.0) as u8;
+
+        if *last == u8::MAX {
+            // First progress update for this algorithm
+            let _ = self.tx.try_send(TuiMessage::Log(format!(
+                "Starting {}...",
+                update.algorithm
+            )));
+            *last = 0;
+        }
+
+        for &threshold in &[25, 50, 75] {
+            if pct >= threshold && *last < threshold {
+                let _ = self.tx.try_send(TuiMessage::Log(format!(
+                    "{}: {threshold}% complete",
+                    update.algorithm
+                )));
+            }
+        }
+        *last = pct;
     }
 
     fn freeze(&self) -> FrozenObserver {

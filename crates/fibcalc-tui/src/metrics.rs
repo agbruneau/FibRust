@@ -89,11 +89,16 @@ pub fn render_metrics(
     elapsed_secs: f64,
     memory_mb: f64,
     cpu_percent: f64,
+    throughput_bits_per_sec: f64,
 ) {
     let text = vec![
-        Line::raw(format!("Elapsed: {elapsed_secs:.1}s")),
-        Line::raw(format!("Memory:  {memory_mb:.1} MB")),
-        Line::raw(format!("CPU:     {cpu_percent:.0}%")),
+        Line::raw(format!("Elapsed:    {elapsed_secs:.1}s")),
+        Line::raw(format!("Memory:     {memory_mb:.1} MB")),
+        Line::raw(format!("CPU:        {cpu_percent:.0}%")),
+        Line::raw(format!(
+            "Throughput: {}",
+            format_throughput(throughput_bits_per_sec)
+        )),
     ];
 
     let block = Block::default()
@@ -205,7 +210,7 @@ mod tests {
         terminal
             .draw(|frame| {
                 let area = frame.area();
-                render_metrics(frame, area, 12.5, 2048.0, 75.0);
+                render_metrics(frame, area, 12.5, 2048.0, 75.0, 500_000.0);
             })
             .unwrap();
     }
@@ -217,7 +222,7 @@ mod tests {
         let buf = terminal
             .draw(|frame| {
                 let area = frame.area();
-                render_metrics(frame, area, 42.3, 1024.0, 50.0);
+                render_metrics(frame, area, 42.3, 1024.0, 50.0, 0.0);
             })
             .unwrap();
 
@@ -236,7 +241,7 @@ mod tests {
         let buf = terminal
             .draw(|frame| {
                 let area = frame.area();
-                render_metrics(frame, area, 0.0, 512.5, 0.0);
+                render_metrics(frame, area, 0.0, 512.5, 0.0, 0.0);
             })
             .unwrap();
 
@@ -254,7 +259,7 @@ mod tests {
         let buf = terminal
             .draw(|frame| {
                 let area = frame.area();
-                render_metrics(frame, area, 0.0, 0.0, 99.0);
+                render_metrics(frame, area, 0.0, 0.0, 99.0, 0.0);
             })
             .unwrap();
 
@@ -272,7 +277,7 @@ mod tests {
         terminal
             .draw(|frame| {
                 let area = frame.area();
-                render_metrics(frame, area, 0.0, 0.0, 0.0);
+                render_metrics(frame, area, 0.0, 0.0, 0.0, 0.0);
             })
             .unwrap();
     }
@@ -284,7 +289,7 @@ mod tests {
         terminal
             .draw(|frame| {
                 let area = frame.area();
-                render_metrics(frame, area, 100.0, 4096.0, 100.0);
+                render_metrics(frame, area, 100.0, 4096.0, 100.0, 0.0);
             })
             .unwrap();
     }

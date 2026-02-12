@@ -66,6 +66,10 @@ pub struct TuiApp {
     pub errors: Vec<String>,
     /// Frozen elapsed time once calculations finish.
     pub finished_elapsed: Option<Duration>,
+    /// Last summed progress for throughput calculation.
+    last_progress_sum: f64,
+    /// Last timestamp for throughput calculation.
+    last_throughput_time: Option<Instant>,
 }
 
 impl TuiApp {
@@ -95,6 +99,8 @@ impl TuiApp {
             n_value: 0,
             errors: Vec::new(),
             finished_elapsed: None,
+            last_progress_sum: 0.0,
+            last_throughput_time: None,
         }
     }
 
@@ -157,6 +163,8 @@ impl TuiApp {
             TuiMessage::Started => {
                 self.start_time = Some(Instant::now());
                 self.finished_elapsed = None;
+                self.last_progress_sum = 0.0;
+                self.last_throughput_time = None;
                 self.generation += 1;
                 self.progress.clear();
                 self.algorithms.clear();
@@ -194,9 +202,35 @@ impl TuiApp {
                 if self.finished_elapsed.is_none() {
                     self.cpu_percent = metrics.cpu_percent;
                     self.memory_mb = metrics.memory_mb;
-                    self.throughput_bits_per_sec = metrics.throughput_bits_per_sec;
-                    // Also push throughput to sparkline
-                    self.sparkline_data.push(metrics.throughput_bits_per_sec);
+
+                    // Calculate throughput from progress delta over time
+                    let current_progress_sum: f64 = self.progress.iter().sum();
+                    let now = Instant::now();
+                    let throughput =
+                        if let Some(last_time) = self.last_throughput_time {
+                            let delta_progress =
+                                current_progress_sum - self.last_progress_sum;
+                            let delta_secs =
+                                now.duration_since(last_time).as_secs_f64();
+                            if delta_secs > 0.0 && delta_progress > 0.0 {
+                                // F(n) has approximately n * log2(phi) bits
+                                let estimated_total_bits =
+                                    self.n_value as f64 * 0.694;
+                                let num_algos =
+                                    self.progress.len().max(1) as f64;
+                                delta_progress / num_algos * estimated_total_bits
+                                    / delta_secs
+                            } else {
+                                0.0
+                            }
+                        } else {
+                            0.0
+                        };
+                    self.last_progress_sum = current_progress_sum;
+                    self.last_throughput_time = Some(now);
+                    self.throughput_bits_per_sec = throughput;
+
+                    self.sparkline_data.push(throughput);
                     if self.sparkline_data.len() > 60 {
                         self.sparkline_data.remove(0);
                     }
@@ -345,7 +379,7 @@ impl TuiApp {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Length(6), // metrics
+                Constraint::Length(7), // metrics
                 Constraint::Min(3),    // sparkline
             ])
             .split(metrics_area);
@@ -383,6 +417,7 @@ impl TuiApp {
                 elapsed_secs,
                 self.memory_mb,
                 self.cpu_percent,
+                self.throughput_bits_per_sec,
             );
             render_sparkline(frame, sparkline_rect, &self.sparkline_data, "Throughput");
 
@@ -398,6 +433,7 @@ impl TuiApp {
                 elapsed_secs,
                 self.memory_mb,
                 self.cpu_percent,
+                self.throughput_bits_per_sec,
             );
             render_sparkline(frame, sparkline_rect, &self.sparkline_data, "Throughput");
         }
