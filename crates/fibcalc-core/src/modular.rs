@@ -21,6 +21,10 @@ impl FastDoublingMod {
     }
 
     /// Compute F(n) mod m using modular Fast Doubling.
+    ///
+    /// # Errors
+    ///
+    /// Returns `FibError::Config` if modulus is zero, or `FibError::Cancelled` on cancellation.
     pub fn fibonacci_mod(
         n: u64,
         modulus: &BigUint,

@@ -65,6 +65,10 @@ pub enum FibError {
 /// ```
 pub trait Calculator: Send + Sync {
     /// Calculate F(n) with the given options.
+    ///
+    /// # Errors
+    ///
+    /// Returns `FibError` on cancellation, timeout, or calculation failure.
     fn calculate(
         &self,
         cancel: &CancellationToken,
@@ -82,6 +86,10 @@ pub trait Calculator: Send + Sync {
 /// Wrapped by `FibCalculator` which adds fast path and progress reporting.
 pub trait CoreCalculator: Send + Sync {
     /// Perform the core calculation for large n.
+    ///
+    /// # Errors
+    ///
+    /// Returns `FibError` on cancellation, timeout, or calculation failure.
     fn calculate_core(
         &self,
         cancel: &CancellationToken,

@@ -127,6 +127,10 @@ impl CancellationToken {
 
     /// Check for cancellation, returning an error if cancelled.
     ///
+    /// # Errors
+    ///
+    /// Returns `FibError::Cancelled` if cancellation was requested.
+    ///
     /// Use this as a checkpoint in algorithm loops:
     /// ```
     /// use fibcalc_core::progress::CancellationToken;
@@ -187,6 +191,10 @@ impl TimeoutCancellationToken {
     }
 
     /// Check for cancellation (manual or timeout), returning an error if cancelled.
+    ///
+    /// # Errors
+    ///
+    /// Returns `FibError::Cancelled` or `FibError::Timeout` if cancelled or timed out.
     pub fn check_cancelled(&self) -> Result<(), FibError> {
         if self.inner.is_cancelled() {
             return Err(FibError::Cancelled);
@@ -211,6 +219,10 @@ impl TimeoutCancellationToken {
 }
 
 /// Helper to check cancellation at a checkpoint. Returns `Err(FibError::Cancelled)` if cancelled.
+///
+/// # Errors
+///
+/// Returns `FibError::Cancelled` if cancellation was requested.
 ///
 /// This is a convenience function for use in algorithm loops:
 /// ```

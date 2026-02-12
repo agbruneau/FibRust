@@ -5,6 +5,7 @@ use clap::Parser;
 /// FibCalc-rs — High-performance Fibonacci calculator.
 #[derive(Parser, Debug)]
 #[command(name = "fibcalc", version, about)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct AppConfig {
     /// Fibonacci number to compute.
     #[arg(short, long, default_value = "100000000", env = "FIBCALC_N")]
@@ -77,11 +78,13 @@ pub struct AppConfig {
 
 impl AppConfig {
     /// Parse CLI arguments.
+    #[must_use]
     pub fn parse() -> Self {
         <Self as Parser>::parse()
     }
 
     /// Parse timeout string into Duration.
+    #[must_use]
     pub fn timeout_duration(&self) -> std::time::Duration {
         parse_duration(&self.timeout).unwrap_or(std::time::Duration::from_secs(300))
     }

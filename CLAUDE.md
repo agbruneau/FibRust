@@ -82,7 +82,7 @@ Presentation (fibcalc-cli, fibcalc-tui) -- CLI output or TUI dashboard
 
 **Imports**: Group as (1) std, (2) external crates, (3) workspace crates.
 
-**Error handling**: `thiserror` for library errors, `anyhow` in main. Enum `FibError` with variants: Calculation, Config, Cancelled, Timeout, Mismatch.
+**Error handling**: `thiserror` for library errors, `anyhow` in main. Enum `FibError` with variants: Calculation, Config, Cancelled, Timeout, Mismatch, Overflow, InvalidInput.
 
 **Concurrency**: `rayon` for CPU-bound parallelism. `crossbeam::channel` for communication. Semaphore via `rayon::ThreadPool` with limited size. No tokio for computation (CPU-bound synchronous).
 

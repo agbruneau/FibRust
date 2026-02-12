@@ -48,6 +48,10 @@ impl MemoryEstimate {
 }
 
 /// Parse a memory limit string (e.g., "8G", "512M", "1024K").
+///
+/// # Errors
+///
+/// Returns an error string if the format is invalid or the number cannot be parsed.
 pub fn parse_memory_limit(s: &str) -> Result<usize, String> {
     let s = s.trim();
     if s.is_empty() {

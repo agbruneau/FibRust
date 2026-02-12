@@ -106,6 +106,7 @@ impl MatrixExponentiation {
     }
 
     /// Execute the matrix exponentiation loop.
+    #[allow(clippy::unused_self)]
     fn execute_matrix_loop(
         &self,
         n: u64,

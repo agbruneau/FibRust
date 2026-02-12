@@ -566,6 +566,8 @@ FibCalc-rs uses a structured error type (`FibError`) with the following variants
 | Error | Exit Code | Meaning |
 |-------|-----------|---------|
 | `Calculation` | 1 | Generic calculation error |
+| `Overflow` | 1 | Fibonacci index too large for the requested output format |
+| `InvalidInput` | 1 | Invalid input was provided |
 | `Timeout` | 2 | Computation exceeded time limit |
 | `Mismatch` | 3 | Cross-validation failure (algorithm results differ) |
 | `Config` | 4 | Configuration error |
@@ -633,6 +635,24 @@ FibCalc-rs uses a structured error type (`FibError`) with the following variants
 3. Verify against known values using the golden test data in `tests/testdata/fibonacci_golden.json`.
 
 4. File an issue with the N value, algorithm outputs, and your platform details.
+
+### "overflow computing F(N): result exceeds ... capacity"
+
+**Problem:** The Fibonacci index is too large for the requested output format (e.g., converting to a fixed-size integer type).
+
+**Solution:**
+
+1. Use a smaller N value, or allow the full `BigUint` result (default behavior).
+2. If using `--last-digits`, ensure the digit count is reasonable for your use case.
+
+### "invalid input: ..."
+
+**Problem:** An invalid input value was provided to a calculation function.
+
+**Solution:**
+
+1. Ensure the Fibonacci index N is a valid non-negative integer.
+2. Check that algorithm-specific parameters (modulus for modular computation, etc.) are valid.
 
 ### "calculation cancelled"
 

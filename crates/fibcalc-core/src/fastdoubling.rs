@@ -166,7 +166,7 @@ impl OptimizedFastDoubling {
     }
 
     /// Execute the doubling loop.
-    #[allow(clippy::cast_possible_truncation)]
+    #[allow(clippy::cast_possible_truncation, clippy::unused_self)]
     fn execute_doubling_loop(
         &self,
         n: u64,

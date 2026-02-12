@@ -22,6 +22,7 @@ use crate::metrics::render_metrics;
 use crate::sparkline::render_sparkline;
 
 /// TUI application state (Elm Model).
+#[allow(clippy::struct_excessive_bools)]
 pub struct TuiApp {
     /// Whether the app should quit.
     pub should_quit: bool,
@@ -449,6 +450,10 @@ impl TuiApp {
     /// Set up the terminal for TUI mode.
     ///
     /// Returns a configured Terminal or an error.
+    ///
+    /// # Errors
+    ///
+    /// Returns an I/O error if raw mode or alternate screen cannot be enabled.
     pub fn setup_terminal() -> io::Result<Terminal<CrosstermBackend<io::Stdout>>> {
         terminal::enable_raw_mode()?;
         let mut stdout = io::stdout();
@@ -458,6 +463,10 @@ impl TuiApp {
     }
 
     /// Tear down the terminal, restoring normal mode.
+    ///
+    /// # Errors
+    ///
+    /// Returns an I/O error if terminal state cannot be restored.
     pub fn teardown_terminal(
         terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
     ) -> io::Result<()> {
@@ -475,6 +484,10 @@ impl TuiApp {
     ///
     /// This sets up the terminal, runs the main loop (poll events, update, render),
     /// and tears down on exit.
+    ///
+    /// # Errors
+    ///
+    /// Returns an I/O error if terminal setup, rendering, or teardown fails.
     pub fn run(&mut self) -> io::Result<()> {
         let mut terminal = Self::setup_terminal()?;
 

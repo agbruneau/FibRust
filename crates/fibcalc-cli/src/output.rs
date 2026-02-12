@@ -53,6 +53,10 @@ pub fn format_number(n: u64) -> String {
 }
 
 /// Write result to a file.
+///
+/// # Errors
+///
+/// Returns an I/O error if the file cannot be created or written.
 pub fn write_to_file(path: &str, value: &BigUint) -> io::Result<()> {
     let mut file = std::fs::File::create(path)?;
     write!(file, "{value}")?;

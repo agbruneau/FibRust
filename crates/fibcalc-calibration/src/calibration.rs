@@ -137,6 +137,7 @@ impl CalibrationEngine {
         self.build_profile_from_estimate(&est)
     }
 
+    #[allow(clippy::unused_self)]
     fn build_profile_from_estimate(&self, est: &EstimatedThresholds) -> CalibrationProfile {
         let cpu = profile::cpu_model();
         let fingerprint = profile::cpu_fingerprint();
@@ -156,6 +157,7 @@ impl CalibrationEngine {
         }
     }
 
+    #[allow(clippy::unused_self)]
     fn load_cached(&self) -> CalibrationProfile {
         // Try to load from file, validate, fallback to defaults
         match crate::io::load_profile() {

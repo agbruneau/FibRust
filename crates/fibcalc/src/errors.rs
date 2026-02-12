@@ -5,6 +5,7 @@ use fibcalc_core::constants::exit_codes;
 
 /// Handle a calculation error and return the appropriate exit code.
 #[allow(dead_code)]
+#[must_use]
 pub fn handle_error(err: &FibError) -> i32 {
     match err {
         FibError::Calculation(_) | FibError::Overflow(_, _) | FibError::InvalidInput(_) => {

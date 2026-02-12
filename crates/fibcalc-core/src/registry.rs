@@ -13,6 +13,10 @@ use crate::matrix::MatrixExponentiation;
 /// Factory trait for creating calculators.
 pub trait CalculatorFactory: Send + Sync {
     /// Get or create a calculator by name.
+    ///
+    /// # Errors
+    ///
+    /// Returns `FibError` if the calculator name is unknown.
     fn get(&self, name: &str) -> Result<Arc<dyn Calculator>, FibError>;
 
     /// List all available calculator names.

@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Code quality**: Implemented comprehensive clippy pedantic lint compliance across all crates.
+  - Added `# Errors` documentation sections to all public fallible functions.
+  - Added `# Panics` documentation to functions that can panic.
+  - Added `#[must_use]` attributes to functions returning values that should not be ignored.
+  - Added targeted `#[allow(...)]` attributes with justification comments for intentional lint suppressions (`dead_code`, `clippy::unused_self`, `clippy::similar_names`, `clippy::struct_excessive_bools`).
+  - Moved `rayon` imports to module top-level in `fibcalc-orchestration` to follow import conventions.
+
+### Removed
+
+- Removed temporary debug files (`Debug.md`, `DebugPlan.md`).
+
 ## [0.1.0] - 2026-02-11
 
 ### Added

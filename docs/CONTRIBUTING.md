@@ -114,6 +114,20 @@ cargo clippy -- -W clippy::pedantic
 
 The workspace `Cargo.toml` configures allowed Clippy exceptions centrally. If you believe a new exception is warranted, discuss it in the PR.
 
+### Clippy Pedantic Documentation Requirements
+
+All public functions must satisfy clippy's pedantic lints:
+
+- **Fallible functions** (`-> Result<...>`): Must include a `/// # Errors` section documenting when and what errors are returned.
+- **Functions that can panic**: Must include a `/// # Panics` section documenting the panic conditions.
+- **Functions returning values**: Should be annotated with `#[must_use]` if discarding the return value is likely a mistake.
+
+**Allowed lint suppressions** (with justification comment):
+- `#[allow(dead_code)]` -- Infrastructure modules wired up incrementally.
+- `#[allow(clippy::unused_self)]` -- Methods that take `&self` for API consistency but don't yet use it.
+- `#[allow(clippy::similar_names)]` -- Mathematical variable names (e.g., `fk`, `fk1`, `f2k`).
+- `#[allow(clippy::struct_excessive_bools)]` -- Config structs with multiple boolean flags.
+
 ### Import Ordering
 
 Group imports in the following order, separated by blank lines:
@@ -138,7 +152,7 @@ use crate::calculator::{Calculator, FibCalculator};
 
 - Use `thiserror` for library error types.
 - Use `anyhow` only in the binary crate (`fibcalc`).
-- Use the `FibError` enum for calculation errors, with variants: `Calculation`, `Config`, `Cancelled`, `Timeout`, `Mismatch`.
+- Use the `FibError` enum for calculation errors, with variants: `Calculation`, `Config`, `Cancelled`, `Timeout`, `Mismatch`, `Overflow`, `InvalidInput`.
 
 ### Cyclomatic Complexity
 

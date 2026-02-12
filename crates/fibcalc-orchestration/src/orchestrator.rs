@@ -3,6 +3,8 @@
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
+
 use fibcalc_core::calculator::{Calculator, FibError};
 use fibcalc_core::observer::ProgressObserver;
 use fibcalc_core::observers::NoOpObserver;
@@ -48,8 +50,6 @@ pub fn execute_calculations_with_observer(
     }
 
     // Multiple calculators: run in parallel using rayon
-    use rayon::iter::{IntoParallelIterator, ParallelIterator};
-
     let results: Vec<CalculationResult> = calculators
         .iter()
         .enumerate()
@@ -84,6 +84,11 @@ pub fn execute_calculations_with_observer(
 }
 
 /// Analyze comparison results for mismatches.
+///
+/// # Errors
+///
+/// Returns `FibError::Calculation` if no valid results exist, or
+/// `FibError::Mismatch` if results disagree.
 pub fn analyze_comparison_results(results: &[CalculationResult]) -> Result<(), FibError> {
     let valid_results: Vec<&CalculationResult> =
         results.iter().filter(|r| r.outcome.is_ok()).collect();

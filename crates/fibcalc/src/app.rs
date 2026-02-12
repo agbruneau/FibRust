@@ -16,6 +16,10 @@ use fibcalc_orchestration::orchestrator::{
 use crate::config::AppConfig;
 
 /// Run the application.
+///
+/// # Errors
+///
+/// Returns an error if calculation, calibration, or TUI execution fails.
 pub fn run(config: &AppConfig) -> Result<()> {
     // Handle shell completion
     if let Some(shell) = config.completion {

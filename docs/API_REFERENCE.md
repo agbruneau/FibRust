@@ -96,11 +96,13 @@ Error type for Fibonacci calculations. Derives `thiserror::Error`.
 
 ```rust
 pub enum FibError {
-    Calculation(String),  // "calculation error: {0}"
-    Config(String),       // "configuration error: {0}"
-    Cancelled,            // "calculation cancelled"
-    Timeout(String),      // "calculation timed out after {0}"
-    Mismatch,             // "result mismatch between algorithms"
+    Calculation(String),            // "calculation error: {0}"
+    Config(String),                 // "configuration error: {0}"
+    Cancelled,                      // "calculation cancelled"
+    Timeout(String),                // "calculation timed out after {0}"
+    Mismatch,                       // "result mismatch between algorithms"
+    Overflow(u64, &'static str),    // "overflow computing F({0}): result exceeds {1} capacity"
+    InvalidInput(String),           // "invalid input: {0}"
 }
 ```
 
@@ -112,6 +114,8 @@ Public trait consumed by orchestration. Requires `Send + Sync`.
 
 ```rust
 pub trait Calculator: Send + Sync {
+    /// # Errors
+    /// Returns `FibError` on cancellation, timeout, or calculation failure.
     fn calculate(
         &self,
         cancel: &CancellationToken,
@@ -140,6 +144,8 @@ Internal trait implemented by algorithm structs (Fast Doubling, Matrix, FFT). No
 
 ```rust
 pub trait CoreCalculator: Send + Sync {
+    /// # Errors
+    /// Returns `FibError` on cancellation, timeout, or calculation failure.
     fn calculate_core(
         &self,
         cancel: &CancellationToken,
@@ -376,6 +382,8 @@ Factory trait for creating calculators.
 
 ```rust
 pub trait CalculatorFactory: Send + Sync {
+    /// # Errors
+    /// Returns `FibError` if the calculator name is unknown.
     fn get(&self, name: &str) -> Result<Arc<dyn Calculator>, FibError>;
     fn available(&self) -> Vec<&str>;
 }
@@ -555,6 +563,8 @@ impl MemoryEstimate {
 Parses a memory limit string.
 
 ```rust
+/// # Errors
+/// Returns an error string if the format is invalid or the number cannot be parsed.
 pub fn parse_memory_limit(s: &str) -> Result<usize, String>;
 ```
 
@@ -567,6 +577,7 @@ Accepts: `"8G"`, `"512M"`, `"1024K"`, `"1024B"`, `""` (returns 0 = unlimited).
 Estimates total work for a Fibonacci computation using a geometric model based on powers of 4.
 
 ```rust
+#[must_use]
 pub fn calc_total_work(n: u64) -> f64;
 ```
 
@@ -577,6 +588,8 @@ pub fn calc_total_work(n: u64) -> f64;
 Convenience function for use in algorithm loops.
 
 ```rust
+/// # Errors
+/// Returns `FibError::Cancelled` if cancellation was requested.
 pub fn check_cancellation(token: &CancellationToken) -> Result<(), FibError>;
 ```
 
@@ -881,6 +894,9 @@ pub fn execute_calculations_with_observer(
 Compare results from multiple calculators. Returns `Ok(())` if all valid results match, `Err(FibError::Mismatch)` if they differ, or `Err(FibError::Calculation)` if no valid results exist.
 
 ```rust
+/// # Errors
+/// Returns `FibError::Calculation` if no valid results exist, or
+/// `FibError::Mismatch` if results disagree.
 pub fn analyze_comparison_results(results: &[CalculationResult]) -> Result<(), FibError>;
 ```
 
@@ -951,6 +967,8 @@ impl ProgressReporter for NullProgressReporter { /* no-op */ }
 Select calculators by algorithm name. Passing `"all"` returns all available calculators.
 
 ```rust
+/// # Errors
+/// Returns `FibError` if the requested algorithm name is unknown.
 pub fn get_calculators_to_run(
     algo: &str,
     factory: &dyn CalculatorFactory,
@@ -1345,11 +1363,24 @@ impl Default for CalibrationProfile { /* static defaults */ }
 
 ```rust
 // fibcalc_calibration::io
-pub fn save_profile(profile: &CalibrationProfile) -> Result<()>;
+
+/// # Errors
+/// Returns an I/O error if the file cannot be written.
+pub fn save_profile(profile: &CalibrationProfile) -> std::io::Result<()>;
+
+/// # Errors
+/// Returns an I/O error if the file cannot be written.
+pub fn save_to_path(profile: &CalibrationProfile, path: &std::path::Path) -> std::io::Result<()>;
+
+/// # Errors
+/// Returns an I/O error if the file exists but cannot be deleted.
+pub fn delete_profile() -> std::io::Result<bool>;
+
 pub fn load_profile() -> Option<CalibrationProfile>;
+pub fn load_validated_profile() -> Option<CalibrationProfile>;
 ```
 
-Profiles are saved to `.fibcalc_calibration.json` in the current directory.
+Profiles are saved to `.fibcalc_calibration.json` in the XDG config directory (or the working directory as fallback).
 
 ---
 

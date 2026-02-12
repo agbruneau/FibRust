@@ -6,6 +6,10 @@ use fibcalc_core::calculator::{Calculator, FibError};
 use fibcalc_core::registry::CalculatorFactory;
 
 /// Get calculators to run based on algorithm selection.
+///
+/// # Errors
+///
+/// Returns `FibError` if the requested algorithm name is unknown.
 pub fn get_calculators_to_run(
     algo: &str,
     factory: &dyn CalculatorFactory,

@@ -699,6 +699,12 @@ pub enum FibError {
 
     #[error("result mismatch between algorithms")]
     Mismatch,
+
+    #[error("overflow computing F({0}): result exceeds {1} capacity")]
+    Overflow(u64, &'static str),
+
+    #[error("invalid input: {0}")]
+    InvalidInput(String),
 }
 ```
 
@@ -708,14 +714,14 @@ pub enum FibError {
 |-------|--------------|
 | Library crates | Return `Result<T, FibError>` using `thiserror` |
 | Binary (`fibcalc`) | Uses `anyhow::Result` for contextual error wrapping |
-| Exit codes | Mapped in `errors.rs`: Calculation=1, Timeout=2, Mismatch=3, Config=4, Cancelled=130 |
+| Exit codes | Mapped in `errors.rs`: Calculation/Overflow/InvalidInput=1, Timeout=2, Mismatch=3, Config=4, Cancelled=130 |
 
 ### Exit Codes
 
 | Code | Meaning | `FibError` Variant |
 |------|---------|-------------------|
 | 0 | Success | -- |
-| 1 | Generic error | `Calculation` |
+| 1 | Generic error | `Calculation`, `Overflow`, `InvalidInput` |
 | 2 | Timeout | `Timeout` |
 | 3 | Result mismatch | `Mismatch` |
 | 4 | Configuration error | `Config` |

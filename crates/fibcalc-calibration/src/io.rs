@@ -54,6 +54,10 @@ pub fn load_validated_profile() -> Option<CalibrationProfile> {
 
 /// Save calibration profile to the XDG config directory.
 /// Falls back to the working directory if the config dir can't be created.
+///
+/// # Errors
+///
+/// Returns an I/O error if the file cannot be written.
 pub fn save_profile(p: &CalibrationProfile) -> std::io::Result<()> {
     let path = if let Some(xdg_path) = xdg_profile_path() {
         // Ensure the config directory exists
@@ -69,12 +73,20 @@ pub fn save_profile(p: &CalibrationProfile) -> std::io::Result<()> {
 }
 
 /// Save profile to a specific path.
+///
+/// # Errors
+///
+/// Returns an I/O error if the file cannot be written.
 pub fn save_to_path(p: &CalibrationProfile, path: &std::path::Path) -> std::io::Result<()> {
     let content = serde_json::to_string_pretty(p).map_err(std::io::Error::other)?;
     std::fs::write(path, content)
 }
 
 /// Delete the saved profile if it exists.
+///
+/// # Errors
+///
+/// Returns an I/O error if the file exists but cannot be deleted.
 pub fn delete_profile() -> std::io::Result<bool> {
     if let Some(path) = xdg_profile_path() {
         if path.exists() {
