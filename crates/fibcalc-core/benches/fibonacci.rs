@@ -1,5 +1,6 @@
 //! Criterion benchmarks for Fibonacci algorithms.
 
+use std::hint::black_box;
 use std::sync::Arc;
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
@@ -28,12 +29,12 @@ fn bench_algorithms(c: &mut Criterion) {
     let fft: Arc<dyn Calculator> =
         Arc::new(FibCalculator::new(Arc::new(FFTBasedCalculator::new())));
 
-    let ns: Vec<u64> = vec![100, 1_000, 10_000, 100_000];
+    let ns: Vec<u64> = vec![100, 1_000, 10_000, 100_000, 1_000_000];
 
     let mut group = c.benchmark_group("FastDoubling");
     for &n in &ns {
         group.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, &n| {
-            b.iter(|| compute(fast.as_ref(), n));
+            b.iter(|| black_box(compute(fast.as_ref(), black_box(n))));
         });
     }
     group.finish();
@@ -41,7 +42,7 @@ fn bench_algorithms(c: &mut Criterion) {
     let mut group = c.benchmark_group("MatrixExponentiation");
     for &n in &ns {
         group.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, &n| {
-            b.iter(|| compute(matrix.as_ref(), n));
+            b.iter(|| black_box(compute(matrix.as_ref(), black_box(n))));
         });
     }
     group.finish();
@@ -49,7 +50,7 @@ fn bench_algorithms(c: &mut Criterion) {
     let mut group = c.benchmark_group("FFTBased");
     for &n in &ns {
         group.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, &n| {
-            b.iter(|| compute(fft.as_ref(), n));
+            b.iter(|| black_box(compute(fft.as_ref(), black_box(n))));
         });
     }
     group.finish();

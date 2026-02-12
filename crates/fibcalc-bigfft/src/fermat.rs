@@ -4,7 +4,7 @@
 //! Number Theoretic Transform (NTT) based multiplication.
 //!
 //! Add and subtract operate directly on u64 limbs to avoid
-//! heap-allocating BigUint conversions in hot loops.
+//! heap-allocating `BigUint` conversions in hot loops.
 
 use num_bigint::BigUint;
 use num_traits::One;
@@ -57,7 +57,7 @@ impl FermatNum {
         (BigUint::one() << self.shift) + BigUint::one()
     }
 
-    /// Normalize: reduce mod (2^shift + 1) via BigUint fallback.
+    /// Normalize: reduce mod (2^shift + 1) via `BigUint` fallback.
     pub fn normalize(&mut self) {
         let modulus = self.modulus();
         let val = self.to_biguint() % &modulus;
@@ -65,7 +65,7 @@ impl FermatNum {
     }
 
     /// Add two Fermat numbers mod (2^shift + 1).
-    /// Uses in-place limb arithmetic instead of BigUint conversion.
+    /// Uses in-place limb arithmetic instead of `BigUint` conversion.
     #[must_use]
     pub fn add(&self, other: &Self) -> Self {
         assert_eq!(self.shift, other.shift);
@@ -98,7 +98,7 @@ impl FermatNum {
     }
 
     /// Subtract other from self mod (2^shift + 1).
-    /// Uses in-place limb arithmetic instead of BigUint conversion.
+    /// Uses in-place limb arithmetic instead of `BigUint` conversion.
     #[must_use]
     pub fn sub(&self, other: &Self) -> Self {
         assert_eq!(self.shift, other.shift);
@@ -261,6 +261,11 @@ impl FermatNum {
 
 /// Select optimal FFT parameters for multiplying two numbers.
 #[must_use]
+#[allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    clippy::cast_precision_loss
+)]
 pub fn select_fft_params(a_bits: usize, b_bits: usize) -> (usize, usize, usize) {
     let max_bits = a_bits.max(b_bits);
 

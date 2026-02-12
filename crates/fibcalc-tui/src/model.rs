@@ -1,5 +1,6 @@
 //! TUI application model (Elm architecture).
 
+use std::collections::VecDeque;
 use std::io;
 use std::time::{Duration, Instant};
 
@@ -33,9 +34,9 @@ pub struct TuiApp {
     /// Completed algorithms with their durations.
     pub completed: Vec<(String, Duration)>,
     /// Log messages.
-    pub logs: Vec<String>,
+    pub logs: VecDeque<String>,
     /// Sparkline data for throughput.
-    pub sparkline_data: Vec<f64>,
+    pub sparkline_data: VecDeque<f64>,
     /// Start time of the calculation.
     pub start_time: Option<Instant>,
     /// Message receiver.
@@ -82,8 +83,8 @@ impl TuiApp {
             progress: Vec::new(),
             algorithms: Vec::new(),
             completed: Vec::new(),
-            logs: Vec::new(),
-            sparkline_data: Vec::new(),
+            logs: VecDeque::new(),
+            sparkline_data: VecDeque::new(),
             start_time: None,
             rx,
             generation: 0,
@@ -123,6 +124,7 @@ impl TuiApp {
     }
 
     /// Handle a single message.
+    #[allow(clippy::too_many_lines, clippy::cast_precision_loss)]
     pub fn handle_message(&mut self, msg: TuiMessage) {
         match msg {
             TuiMessage::Progress {
@@ -139,10 +141,10 @@ impl TuiApp {
                 self.algorithms[index] = algorithm;
             }
             TuiMessage::Log(msg) => {
-                self.logs.push(msg);
+                self.logs.push_back(msg);
                 // Keep only last 500 log entries
                 if self.logs.len() > 500 {
-                    self.logs.remove(0);
+                    self.logs.pop_front();
                     // Adjust scroll offset when removing items
                     if self.log_scroll_offset > 0 {
                         self.log_scroll_offset -= 1;
@@ -154,10 +156,10 @@ impl TuiApp {
                 }
             }
             TuiMessage::SparklineData(value) => {
-                self.sparkline_data.push(value);
+                self.sparkline_data.push_back(value);
                 // Ring buffer: keep last 60 values
                 if self.sparkline_data.len() > 60 {
-                    self.sparkline_data.remove(0);
+                    self.sparkline_data.pop_front();
                 }
             }
             TuiMessage::Started => {
@@ -192,7 +194,7 @@ impl TuiApp {
             }
             TuiMessage::Error(err) => {
                 self.errors.push(err.clone());
-                self.logs.push(format!("[ERROR] {err}"));
+                self.logs.push_back(format!("[ERROR] {err}"));
             }
             TuiMessage::Finished => {
                 self.finished_elapsed = self.start_time.map(|t| t.elapsed());
@@ -206,33 +208,27 @@ impl TuiApp {
                     // Calculate throughput from progress delta over time
                     let current_progress_sum: f64 = self.progress.iter().sum();
                     let now = Instant::now();
-                    let throughput =
-                        if let Some(last_time) = self.last_throughput_time {
-                            let delta_progress =
-                                current_progress_sum - self.last_progress_sum;
-                            let delta_secs =
-                                now.duration_since(last_time).as_secs_f64();
-                            if delta_secs > 0.0 && delta_progress > 0.0 {
-                                // F(n) has approximately n * log2(phi) bits
-                                let estimated_total_bits =
-                                    self.n_value as f64 * 0.694;
-                                let num_algos =
-                                    self.progress.len().max(1) as f64;
-                                delta_progress / num_algos * estimated_total_bits
-                                    / delta_secs
-                            } else {
-                                0.0
-                            }
+                    let throughput = if let Some(last_time) = self.last_throughput_time {
+                        let delta_progress = current_progress_sum - self.last_progress_sum;
+                        let delta_secs = now.duration_since(last_time).as_secs_f64();
+                        if delta_secs > 0.0 && delta_progress > 0.0 {
+                            // F(n) has approximately n * log2(phi) bits
+                            let estimated_total_bits = self.n_value as f64 * 0.694;
+                            let num_algos = self.progress.len().max(1) as f64;
+                            delta_progress / num_algos * estimated_total_bits / delta_secs
                         } else {
                             0.0
-                        };
+                        }
+                    } else {
+                        0.0
+                    };
                     self.last_progress_sum = current_progress_sum;
                     self.last_throughput_time = Some(now);
                     self.throughput_bits_per_sec = throughput;
 
-                    self.sparkline_data.push(throughput);
+                    self.sparkline_data.push_back(throughput);
                     if self.sparkline_data.len() > 60 {
-                        self.sparkline_data.remove(0);
+                        self.sparkline_data.pop_front();
                     }
                 }
             }
@@ -388,7 +384,11 @@ impl TuiApp {
     }
 
     /// Render the full TUI view.
-    pub fn render(&self, frame: &mut ratatui::Frame) {
+    pub fn render(&mut self, frame: &mut ratatui::Frame) {
+        // Make VecDeques contiguous so we can borrow slices during render.
+        self.sparkline_data.make_contiguous();
+        self.logs.make_contiguous();
+
         let (header_area, progress_area, info_area, footer_area) =
             Self::compute_layout(frame.area());
 
@@ -402,6 +402,10 @@ impl TuiApp {
 
         // Progress panel (60% top)
         render_progress(frame, progress_area, &self.algorithms, &self.progress);
+
+        // SAFETY of unwrap: make_contiguous was called above, so as_slices().1 is empty.
+        let (sparkline_slice, _) = self.sparkline_data.as_slices();
+        let (logs_slice, _) = self.logs.as_slices();
 
         // Info panel (40% bottom)
         if self.show_logs {
@@ -419,10 +423,10 @@ impl TuiApp {
                 self.cpu_percent,
                 self.throughput_bits_per_sec,
             );
-            render_sparkline(frame, sparkline_rect, &self.sparkline_data, "Throughput");
+            render_sparkline(frame, sparkline_rect, sparkline_slice, "Throughput");
 
             // Right column: logs
-            render_logs(frame, logs_col, &self.logs, self.log_scroll_offset);
+            render_logs(frame, logs_col, logs_slice, self.log_scroll_offset);
         } else {
             // No logs, show full metrics + sparkline
             let (metrics_rect, sparkline_rect) = Self::compute_metrics_layout(info_area);
@@ -435,7 +439,7 @@ impl TuiApp {
                 self.cpu_percent,
                 self.throughput_bits_per_sec,
             );
-            render_sparkline(frame, sparkline_rect, &self.sparkline_data, "Throughput");
+            render_sparkline(frame, sparkline_rect, sparkline_slice, "Throughput");
         }
 
         // Footer
@@ -1137,7 +1141,7 @@ mod tests {
         use ratatui::backend::TestBackend;
         use ratatui::Terminal;
 
-        let (app, _tx) = make_app();
+        let (mut app, _tx) = make_app();
         assert!(app.algorithms.is_empty());
 
         let backend = TestBackend::new(80, 24);

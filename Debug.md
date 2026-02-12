@@ -26,7 +26,7 @@ Evaluate each Fibonacci algorithm implemented. Common approaches to check for:
 | Memoized recursive    | O(n)     | O(n)           | HashMap vs Vec tradeoff                                |
 | Iterative             | O(n)     | O(1)           | Standard, recommended for most cases                   |
 | Matrix exponentiation | O(log n) | O(1)           | Uses [[1,1],[1,0]]^n identity                          |
-| Fast doubling         | O(log n) | O(log n) stack | F(2n)=F(n)[2F(n+1)–F(n)], best for single large n     |
+| Fast doubling         | O(log n) | O(1)           | F(2n)=F(n)[2F(n+1)–F(n)], iterative bit-scan          |
 | Iterator trait        | O(n)     | O(1)           | Most idiomatic Rust for sequence generation            |
 
 For each algorithm found:

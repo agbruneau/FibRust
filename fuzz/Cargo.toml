@@ -18,3 +18,24 @@ path = "fuzz_targets/fuzz_fast_doubling.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "fuzz_matrix"
+path = "fuzz_targets/fuzz_matrix.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_fft"
+path = "fuzz_targets/fuzz_fft.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_cross_algorithm"
+path = "fuzz_targets/fuzz_cross_algorithm.rs"
+test = false
+doc = false
+bench = false

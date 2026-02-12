@@ -50,7 +50,7 @@ impl AtomicPoolStats {
 
 /// Clear a `BigUint` by setting it to zero.
 ///
-/// BigUint::from(0u32) is the simplest approach -- the original "preserve capacity"
+/// `BigUint::from(0u32)` is the simplest approach -- the original "preserve capacity"
 /// implementation didn't actually work since num-bigint doesn't expose its internal Vec.
 /// Just zero it out; the allocation cost is negligible compared to computation.
 fn clear_preserving_capacity(value: &mut BigUint) {
@@ -92,6 +92,7 @@ impl BigIntPool {
     }
 
     /// Return a `BigUint` to the pool.
+    #[allow(clippy::cast_possible_truncation)]
     pub fn release(&self, mut value: BigUint) {
         let bits = value.bits() as usize;
         if bits > self.max_bit_len {

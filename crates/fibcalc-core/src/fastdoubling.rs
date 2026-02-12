@@ -141,6 +141,22 @@ fn tl_release_state(state: CalculationState) {
 }
 
 /// Optimized Fast Doubling calculator.
+///
+/// # Example
+/// ```
+/// use fibcalc_core::fastdoubling::OptimizedFastDoubling;
+/// use fibcalc_core::calculator::CoreCalculator;
+/// use fibcalc_core::observers::NoOpObserver;
+/// use fibcalc_core::options::Options;
+/// use fibcalc_core::progress::CancellationToken;
+///
+/// let calc = OptimizedFastDoubling::new();
+/// let cancel = CancellationToken::new();
+/// let observer = NoOpObserver::new();
+/// let opts = Options::default();
+/// let result = calc.calculate_core(&cancel, &observer, 0, 100, &opts).unwrap();
+/// assert_eq!(result.to_string(), "354224848179261915075");
+/// ```
 pub struct OptimizedFastDoubling;
 
 impl OptimizedFastDoubling {
@@ -150,6 +166,7 @@ impl OptimizedFastDoubling {
     }
 
     /// Execute the doubling loop.
+    #[allow(clippy::cast_possible_truncation)]
     fn execute_doubling_loop(
         &self,
         n: u64,

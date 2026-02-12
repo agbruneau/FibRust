@@ -33,6 +33,7 @@ impl SparklineBuffer {
     }
 
     /// Push a new value.
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     pub fn push(&mut self, value: f64) {
         let scaled = (value * 100.0) as u64;
         if self.data.len() >= self.capacity {
@@ -72,6 +73,7 @@ impl SparklineBuffer {
 }
 
 /// Render a sparkline widget using ratatui's built-in sparkline.
+#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
 pub fn render_sparkline(frame: &mut Frame, area: Rect, data: &[f64], title: &str) {
     let scaled: Vec<u64> = data.iter().map(|&v| (v * 100.0) as u64).collect();
 
@@ -116,6 +118,11 @@ pub fn render_braille_sparkline(frame: &mut Frame, area: Rect, data: &[f64], tit
 }
 
 /// Generate Braille-encoded lines from data.
+#[allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    clippy::cast_precision_loss
+)]
 fn braille_lines(data: &[f64], char_width: usize, char_height: usize) -> Vec<Line<'static>> {
     if data.is_empty() || char_width == 0 || char_height == 0 {
         return Vec::new();

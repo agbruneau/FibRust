@@ -10,6 +10,10 @@ description = "High-performance Fibonacci calculator with CLI and TUI modes"
 name = "fibcalc"
 path = "src/main.rs"
 
+[lib]
+name = "fibcalc_lib"
+path = "src/lib.rs"
+
 [features]
 default = []
 gmp = ["fibcalc-core/gmp"]

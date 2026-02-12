@@ -18,6 +18,11 @@ pub fn format_result(value: &BigUint, verbose: bool) -> String {
 
 /// Format a duration for display.
 #[must_use]
+#[allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    clippy::cast_precision_loss
+)]
 pub fn format_duration(d: Duration) -> String {
     let secs = d.as_secs_f64();
     if secs < 0.001 {

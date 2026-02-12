@@ -23,6 +23,7 @@ impl Default for IterativeGenerator {
 }
 
 impl SequenceGenerator for IterativeGenerator {
+    #[allow(clippy::cast_possible_truncation)]
     fn generate(
         &self,
         start: u64,

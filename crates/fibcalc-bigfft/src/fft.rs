@@ -15,6 +15,7 @@ const FFT_BIT_THRESHOLD: usize = 10_000;
 
 /// Multiply two `BigUints`, using FFT for large operands.
 #[must_use]
+#[allow(clippy::cast_possible_truncation)]
 pub fn mul(a: &BigUint, b: &BigUint) -> BigUint {
     let max_bits = a.bits().max(b.bits()) as usize;
     if max_bits >= FFT_BIT_THRESHOLD {
@@ -26,6 +27,7 @@ pub fn mul(a: &BigUint, b: &BigUint) -> BigUint {
 
 /// Square a `BigUint`, using FFT with transform reuse for large operands.
 #[must_use]
+#[allow(clippy::cast_possible_truncation)]
 pub fn sqr(a: &BigUint) -> BigUint {
     let bits = a.bits() as usize;
     if bits >= FFT_BIT_THRESHOLD {
@@ -46,6 +48,7 @@ pub fn sqr_to(dst: &mut BigUint, a: &BigUint) {
 }
 
 /// FFT multiplication core using Schönhage-Strassen NTT over Fermat ring.
+#[allow(clippy::cast_possible_truncation)]
 fn fft_multiply(a: &BigUint, b: &BigUint) -> BigUint {
     if a.is_zero() || b.is_zero() {
         return BigUint::ZERO;
@@ -79,6 +82,7 @@ fn fft_multiply(a: &BigUint, b: &BigUint) -> BigUint {
 /// FFT squaring with transform reuse optimization.
 ///
 /// Only performs one forward NTT instead of two.
+#[allow(clippy::cast_possible_truncation)]
 fn fft_square(a: &BigUint) -> BigUint {
     if a.is_zero() {
         return BigUint::ZERO;
@@ -95,9 +99,9 @@ fn fft_square(a: &BigUint) -> BigUint {
     fft_forward(&mut coeffs, fermat_shift);
 
     // Pointwise square in-place (reuse same transform, no new allocation)
-    for i in 0..coeffs.len() {
-        let squared = coeffs[i].fermat_mul(&coeffs[i]);
-        coeffs[i] = squared;
+    for coeff in &mut coeffs {
+        let squared = coeff.fermat_mul(coeff);
+        *coeff = squared;
     }
 
     // Inverse NTT

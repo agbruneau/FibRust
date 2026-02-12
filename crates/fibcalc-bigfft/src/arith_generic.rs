@@ -3,6 +3,7 @@
 /// Add with carry: a + b + carry -> (sum, `new_carry`)
 #[inline]
 #[must_use]
+#[allow(clippy::cast_possible_truncation)]
 pub fn add_with_carry(a: u64, b: u64, carry: u64) -> (u64, u64) {
     let sum = u128::from(a) + u128::from(b) + u128::from(carry);
     (sum as u64, (sum >> 64) as u64)
@@ -11,6 +12,7 @@ pub fn add_with_carry(a: u64, b: u64, carry: u64) -> (u64, u64) {
 /// Subtract with borrow: a - b - borrow -> (diff, `new_borrow`)
 #[inline]
 #[must_use]
+#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
 pub fn sub_with_borrow(a: u64, b: u64, borrow: u64) -> (u64, u64) {
     let diff = i128::from(a) - i128::from(b) - i128::from(borrow);
     if diff < 0 {
@@ -23,6 +25,7 @@ pub fn sub_with_borrow(a: u64, b: u64, borrow: u64) -> (u64, u64) {
 /// Multiply: a * b -> (low, high)
 #[inline]
 #[must_use]
+#[allow(clippy::cast_possible_truncation)]
 pub fn mul_wide(a: u64, b: u64) -> (u64, u64) {
     let prod = u128::from(a) * u128::from(b);
     (prod as u64, (prod >> 64) as u64)

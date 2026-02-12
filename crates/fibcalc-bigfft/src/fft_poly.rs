@@ -19,7 +19,7 @@ impl Poly {
     /// Create a polynomial from a `BigUint` by splitting into pieces of `piece_bits` bits.
     ///
     /// Extracts limbs directly from the u64 digit representation to avoid
-    /// repeated cloning and shifting of the full BigUint.
+    /// repeated cloning and shifting of the full `BigUint`.
     ///
     /// - `n`: number of coefficients (padded with zeros)
     /// - `piece_bits`: bits per piece

@@ -35,9 +35,34 @@ pub enum FibError {
     /// Results from different algorithms don't match.
     #[error("result mismatch between algorithms")]
     Mismatch,
+
+    /// Overflow computing a Fibonacci number.
+    #[error("overflow computing F({0}): result exceeds {1} capacity")]
+    Overflow(u64, &'static str),
+
+    /// Invalid input was provided.
+    #[error("invalid input: {0}")]
+    InvalidInput(String),
 }
 
 /// Public trait for Fibonacci calculators, consumed by orchestration.
+///
+/// # Example
+/// ```
+/// use std::sync::Arc;
+/// use fibcalc_core::calculator::{Calculator, FibCalculator};
+/// use fibcalc_core::fastdoubling::OptimizedFastDoubling;
+/// use fibcalc_core::observers::NoOpObserver;
+/// use fibcalc_core::options::Options;
+/// use fibcalc_core::progress::CancellationToken;
+///
+/// let calc = FibCalculator::new(Arc::new(OptimizedFastDoubling::new()));
+/// let cancel = CancellationToken::new();
+/// let observer = NoOpObserver::new();
+/// let opts = Options::default();
+/// let result = calc.calculate(&cancel, &observer, 0, 10, &opts).unwrap();
+/// assert_eq!(result.to_string(), "55");
+/// ```
 pub trait Calculator: Send + Sync {
     /// Calculate F(n) with the given options.
     fn calculate(
@@ -50,7 +75,7 @@ pub trait Calculator: Send + Sync {
     ) -> Result<BigUint, FibError>;
 
     /// Get the name of this calculator.
-    fn name(&self) -> &str;
+    fn name(&self) -> &'static str;
 }
 
 /// Internal trait for algorithm implementations.
@@ -67,10 +92,30 @@ pub trait CoreCalculator: Send + Sync {
     ) -> Result<BigUint, FibError>;
 
     /// Get the name of this algorithm.
-    fn name(&self) -> &str;
+    fn name(&self) -> &'static str;
 }
 
 /// Decorator that wraps a `CoreCalculator` with fast path and progress reporting.
+///
+/// # Example
+/// ```
+/// use std::sync::Arc;
+/// use fibcalc_core::calculator::{Calculator, FibCalculator};
+/// use fibcalc_core::fastdoubling::OptimizedFastDoubling;
+/// use fibcalc_core::observers::NoOpObserver;
+/// use fibcalc_core::options::Options;
+/// use fibcalc_core::progress::CancellationToken;
+///
+/// let calc = FibCalculator::new(Arc::new(OptimizedFastDoubling::new()));
+/// assert_eq!(calc.name(), "FastDoubling");
+///
+/// let cancel = CancellationToken::new();
+/// let observer = NoOpObserver::new();
+/// let opts = Options::default();
+/// // F(0) through the fast path
+/// let result = calc.calculate(&cancel, &observer, 0, 0, &opts).unwrap();
+/// assert_eq!(result.to_string(), "0");
+/// ```
 pub struct FibCalculator {
     inner: Arc<dyn CoreCalculator>,
 }
@@ -83,6 +128,12 @@ impl FibCalculator {
     }
 
     /// Fast path for small n (n <= 93) using precomputed table.
+    ///
+    /// # Panics
+    ///
+    /// Panics with index out of bounds if `n > 93`, since `FIB_TABLE`
+    /// only contains entries for F(0) through F(93).
+    #[allow(clippy::cast_possible_truncation)] // n is guaranteed <= 93
     fn calculate_small(n: u64) -> BigUint {
         BigUint::from(FIB_TABLE[n as usize])
     }
@@ -113,7 +164,7 @@ impl Calculator for FibCalculator {
             .calculate_core(cancel, observer, calc_index, n, opts)
     }
 
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         self.inner.name()
     }
 }
@@ -136,6 +187,18 @@ mod tests {
             FibCalculator::calculate_small(93),
             BigUint::from(12_200_160_415_121_876_738u64)
         );
+    }
+
+    #[test]
+    fn calculate_small_boundary_93() {
+        let result = FibCalculator::calculate_small(93);
+        assert_eq!(result, BigUint::from(12_200_160_415_121_876_738u64));
+    }
+
+    #[test]
+    #[should_panic(expected = "index out of bounds")]
+    fn calculate_small_94_panics() {
+        let _ = FibCalculator::calculate_small(94);
     }
 
     #[test]

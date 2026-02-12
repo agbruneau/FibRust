@@ -26,6 +26,10 @@ pub const MAX_FIB_U64: u64 = 93;
 pub const MAX_POOLED_BIT_LEN: usize = 100_000_000;
 
 /// Precomputed Fibonacci values for n = 0..=93 (fast path).
+///
+/// F(93) = 12,200,160,415,121,876,738 is the largest Fibonacci number
+/// that fits in `u64`. F(94) = 19,740,274,219,868,223,167 overflows
+/// `u64::MAX` (18,446,744,073,709,551,615).
 pub const FIB_TABLE: [u64; 94] = {
     let mut table = [0u64; 94];
     table[0] = 0;

@@ -12,7 +12,7 @@ pub struct ProgressUpdate {
     /// Calculator index (for multi-calculator runs).
     pub calc_index: usize,
     /// Name of the algorithm producing this update.
-    pub algorithm: String,
+    pub algorithm: &'static str,
     /// Current progress as a fraction in [0.0, 1.0].
     pub progress: f64,
     /// Current iteration/step number.
@@ -28,14 +28,14 @@ impl ProgressUpdate {
     #[must_use]
     pub fn new(
         calc_index: usize,
-        algorithm: &str,
+        algorithm: &'static str,
         progress: f64,
         current: u64,
         total: u64,
     ) -> Self {
         Self {
             calc_index,
-            algorithm: algorithm.to_string(),
+            algorithm,
             progress,
             current_step: current,
             total_steps: total,
@@ -45,10 +45,10 @@ impl ProgressUpdate {
 
     /// Create a completion update.
     #[must_use]
-    pub fn done(calc_index: usize, algorithm: &str) -> Self {
+    pub fn done(calc_index: usize, algorithm: &'static str) -> Self {
         Self {
             calc_index,
-            algorithm: algorithm.to_string(),
+            algorithm,
             progress: 1.0,
             current_step: 0,
             total_steps: 0,
@@ -62,6 +62,7 @@ impl ProgressUpdate {
 /// Uses a geometric model based on powers of 4 to estimate work.
 /// Each doubling step roughly quadruples the number of digits.
 #[must_use]
+#[allow(clippy::cast_possible_truncation)]
 pub fn calc_total_work(n: u64) -> f64 {
     if n == 0 {
         return 0.0;
@@ -87,6 +88,18 @@ const POWERS_OF_4: [f64; 64] = {
 };
 
 /// Cooperative cancellation token using atomic bool.
+///
+/// # Example
+/// ```
+/// use fibcalc_core::progress::CancellationToken;
+///
+/// let token = CancellationToken::new();
+/// assert!(!token.is_cancelled());
+///
+/// token.cancel();
+/// assert!(token.is_cancelled());
+/// assert!(token.check_cancelled().is_err());
+/// ```
 #[derive(Clone)]
 pub struct CancellationToken {
     cancelled: Arc<AtomicU64>,
@@ -115,8 +128,16 @@ impl CancellationToken {
     /// Check for cancellation, returning an error if cancelled.
     ///
     /// Use this as a checkpoint in algorithm loops:
-    /// ```ignore
-    /// token.check_cancelled()?;
+    /// ```
+    /// use fibcalc_core::progress::CancellationToken;
+    ///
+    /// let token = CancellationToken::new();
+    /// // Not cancelled yet — returns Ok
+    /// assert!(token.check_cancelled().is_ok());
+    ///
+    /// token.cancel();
+    /// // Now cancelled — returns Err(FibError::Cancelled)
+    /// assert!(token.check_cancelled().is_err());
     /// ```
     pub fn check_cancelled(&self) -> Result<(), FibError> {
         if self.is_cancelled() {
@@ -192,8 +213,14 @@ impl TimeoutCancellationToken {
 /// Helper to check cancellation at a checkpoint. Returns `Err(FibError::Cancelled)` if cancelled.
 ///
 /// This is a convenience function for use in algorithm loops:
-/// ```ignore
-/// check_cancellation(&cancel)?;
+/// ```
+/// use fibcalc_core::progress::{CancellationToken, check_cancellation};
+///
+/// let token = CancellationToken::new();
+/// assert!(check_cancellation(&token).is_ok());
+///
+/// token.cancel();
+/// assert!(check_cancellation(&token).is_err());
 /// ```
 #[inline]
 pub fn check_cancellation(token: &CancellationToken) -> Result<(), FibError> {

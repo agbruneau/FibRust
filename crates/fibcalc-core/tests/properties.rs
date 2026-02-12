@@ -51,6 +51,16 @@ proptest! {
         prop_assert_eq!(&fn_val + &fn1_val, fn2_val, "F({}) + F({}) != F({})", n, n + 1, n + 2);
     }
 
+    /// F(n) < F(n+1) for all n >= 2 (strictly increasing).
+    /// Note: F(1) = F(2) = 1, so strict monotonicity starts at n=2.
+    #[test]
+    fn monotonically_increasing(n in 2u64..500) {
+        let algo = OptimizedFastDoubling::new();
+        let fn_val = compute_core(&algo, n);
+        let fn1_val = compute_core(&algo, n + 1);
+        prop_assert!(fn1_val > fn_val, "F({}) >= F({}) violated", n + 1, n);
+    }
+
     /// F(n) mod 10^k matches FastDoublingMod for random n, k.
     #[test]
     fn modular_matches_full_computation(n in 94u64..2000, k in 1u32..8) {

@@ -1,11 +1,7 @@
 //! FibCalc-rs — High-performance Fibonacci calculator.
 
-mod app;
-mod config;
-mod errors;
-mod version;
-
 use anyhow::Result;
+use fibcalc_lib::{app, config};
 
 fn main() -> Result<()> {
     // Initialize tracing

@@ -5,7 +5,6 @@
 //! Strategies include Karatsuba, FFT, and adaptive selection.
 
 use num_bigint::BigUint;
-use rayon;
 
 /// Narrow interface for multiplication operations (ISP).
 pub trait Multiplier: Send + Sync {
@@ -101,6 +100,7 @@ impl Multiplier for ParallelKaratsubaStrategy {
 }
 
 impl DoublingStepExecutor for ParallelKaratsubaStrategy {
+    #[allow(clippy::cast_possible_truncation)]
     fn execute_doubling_step(&self, fk: &BigUint, fk1: &BigUint) -> (BigUint, BigUint) {
         // F(2k) = F(k) * (2*F(k+1) - F(k))  — 1 multiply
         // F(2k+1) = F(k)^2 + F(k+1)^2       — 2 squarings
@@ -180,6 +180,7 @@ impl AdaptiveStrategy {
     }
 
     /// Get the bit length of a `BigUint`.
+    #[allow(clippy::cast_possible_truncation)]
     fn bit_len(n: &BigUint) -> usize {
         n.bits() as usize
     }

@@ -14,7 +14,7 @@ pub fn execute_doubling_loop(
     cancel: &CancellationToken,
     observer: &dyn ProgressObserver,
     calc_index: usize,
-    algorithm_name: &str,
+    algorithm_name: &'static str,
 ) -> Result<BigUint, FibError> {
     let num_bits = 64 - n.leading_zeros();
     let mut fk = BigUint::ZERO;
@@ -66,7 +66,7 @@ pub fn execute_doubling_loop_parallel(
     cancel: &CancellationToken,
     observer: &dyn ProgressObserver,
     calc_index: usize,
-    algorithm_name: &str,
+    algorithm_name: &'static str,
     parallel_threshold: usize,
 ) -> Result<BigUint, FibError> {
     if parallel_threshold > 0 {

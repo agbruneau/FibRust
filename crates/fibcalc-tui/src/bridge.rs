@@ -29,7 +29,7 @@ impl ProgressReporter for TUIProgressReporter {
         let _ = self.tx.try_send(TuiMessage::Progress {
             index: update.calc_index,
             progress: update.progress,
-            algorithm: update.algorithm.clone(),
+            algorithm: update.algorithm.to_string(),
         });
     }
 
@@ -46,7 +46,7 @@ impl ProgressReporter for TUIProgressReporter {
 /// logs panel is populated during computation.
 pub struct TuiBridgeObserver {
     tx: Sender<TuiMessage>,
-    /// Tracks the last reported milestone per algorithm (by calc_index).
+    /// Tracks the last reported milestone per algorithm (by `calc_index`).
     milestones: parking_lot::Mutex<std::collections::HashMap<usize, u8>>,
 }
 
@@ -61,11 +61,12 @@ impl TuiBridgeObserver {
 }
 
 impl ProgressObserver for TuiBridgeObserver {
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     fn on_progress(&self, update: &ProgressUpdate) {
         let _ = self.tx.try_send(TuiMessage::Progress {
             index: update.calc_index,
             progress: update.progress,
-            algorithm: update.algorithm.clone(),
+            algorithm: update.algorithm.to_string(),
         });
 
         // Send log messages at milestones
@@ -75,10 +76,9 @@ impl ProgressObserver for TuiBridgeObserver {
 
         if *last == u8::MAX {
             // First progress update for this algorithm
-            let _ = self.tx.try_send(TuiMessage::Log(format!(
-                "Starting {}...",
-                update.algorithm
-            )));
+            let _ = self
+                .tx
+                .try_send(TuiMessage::Log(format!("Starting {}...", update.algorithm)));
             *last = 0;
         }
 
@@ -130,7 +130,7 @@ impl ResultPresenter for TUIResultPresenter {
 
     fn present_comparison(&self, results: &[CalculationResult]) {
         for r in results {
-            let status = if r.error.is_some() { "ERROR" } else { "OK" };
+            let status = if r.outcome.is_err() { "ERROR" } else { "OK" };
             let _ = self.tx.try_send(TuiMessage::Log(format!(
                 "{}: {:.3?} [{}]",
                 r.algorithm, r.duration, status
@@ -149,10 +149,10 @@ mod tests {
     use crossbeam_channel::unbounded;
     use fibcalc_core::progress::ProgressUpdate;
 
-    fn make_progress_update(index: usize, progress: f64, algo: &str) -> ProgressUpdate {
+    fn make_progress_update(index: usize, progress: f64, algo: &'static str) -> ProgressUpdate {
         ProgressUpdate {
             calc_index: index,
-            algorithm: algo.to_string(),
+            algorithm: algo,
             progress,
             current_step: 50,
             total_steps: 100,
@@ -330,15 +330,13 @@ mod tests {
         let results = vec![
             CalculationResult {
                 algorithm: "FastDoubling".to_string(),
-                value: Some(BigUint::from(42u32)),
+                outcome: Ok(BigUint::from(42u32)),
                 duration: Duration::from_millis(100),
-                error: None,
             },
             CalculationResult {
                 algorithm: "Matrix".to_string(),
-                value: Some(BigUint::from(42u32)),
+                outcome: Ok(BigUint::from(42u32)),
                 duration: Duration::from_millis(200),
-                error: None,
             },
         ];
 
@@ -370,9 +368,8 @@ mod tests {
 
         let results = vec![CalculationResult {
             algorithm: "FFT".to_string(),
-            value: None,
+            outcome: Err("overflow".to_string()),
             duration: Duration::from_millis(50),
-            error: Some("overflow".to_string()),
         }];
 
         presenter.present_comparison(&results);

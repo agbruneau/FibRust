@@ -31,6 +31,7 @@ impl MetricsCollector {
     }
 
     /// Refresh system metrics.
+    #[allow(clippy::cast_precision_loss)]
     pub fn refresh(&mut self) {
         self.system.refresh_cpu_usage();
         self.system.refresh_memory();

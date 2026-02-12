@@ -1,5 +1,7 @@
 //! Dynamic threshold management with ring buffer and hysteresis.
 
+use std::collections::VecDeque;
+
 use crate::constants::{
     DEFAULT_FFT_THRESHOLD, DEFAULT_PARALLEL_THRESHOLD, DEFAULT_STRASSEN_THRESHOLD,
 };
@@ -17,7 +19,7 @@ pub struct DynamicThresholdManager {
     current_fft: usize,
     current_strassen: usize,
     adjustment_count: usize,
-    adjustment_history: Vec<ThresholdAdjustment>,
+    adjustment_history: VecDeque<ThresholdAdjustment>,
 }
 
 impl DynamicThresholdManager {
@@ -34,7 +36,7 @@ impl DynamicThresholdManager {
             current_fft: DEFAULT_FFT_THRESHOLD,
             current_strassen: DEFAULT_STRASSEN_THRESHOLD,
             adjustment_count: 0,
-            adjustment_history: Vec::new(),
+            adjustment_history: VecDeque::new(),
         }
     }
 
@@ -57,6 +59,11 @@ impl DynamicThresholdManager {
     }
 
     /// Adjust thresholds based on collected metrics.
+    #[allow(
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss,
+        clippy::cast_precision_loss
+    )]
     pub fn adjust(&mut self) {
         if self.metrics.is_empty() {
             return;
@@ -71,13 +78,13 @@ impl DynamicThresholdManager {
         if stats.fft_benefit > hysteresis && stats.fft_benefit.abs() > dead_zone {
             let old = self.current_fft;
             let factor = (1.0 - max_adj).max(0.5);
-            self.current_fft = ((self.current_fft as f64) * factor) as usize;
+            self.current_fft = ((self.current_fft as f64) * factor).round() as usize;
             self.current_fft = self.current_fft.max(1024);
             self.record_adjustment("fft", old, self.current_fft, stats.fft_benefit);
         } else if stats.fft_benefit < -hysteresis && stats.fft_benefit.abs() > dead_zone {
             let old = self.current_fft;
             let factor = (1.0 + max_adj).min(2.0);
-            self.current_fft = ((self.current_fft as f64) * factor) as usize;
+            self.current_fft = ((self.current_fft as f64) * factor).round() as usize;
             self.record_adjustment("fft", old, self.current_fft, stats.fft_benefit);
         }
 
@@ -85,7 +92,7 @@ impl DynamicThresholdManager {
         if stats.parallel_benefit > hysteresis && stats.parallel_benefit.abs() > dead_zone {
             let old = self.current_parallel;
             let factor = (1.0 - max_adj).max(0.5);
-            self.current_parallel = ((self.current_parallel as f64) * factor) as usize;
+            self.current_parallel = ((self.current_parallel as f64) * factor).round() as usize;
             self.current_parallel = self.current_parallel.max(512);
             self.record_adjustment(
                 "parallel",
@@ -96,7 +103,7 @@ impl DynamicThresholdManager {
         } else if stats.parallel_benefit < -hysteresis && stats.parallel_benefit.abs() > dead_zone {
             let old = self.current_parallel;
             let factor = (1.0 + max_adj).min(2.0);
-            self.current_parallel = ((self.current_parallel as f64) * factor) as usize;
+            self.current_parallel = ((self.current_parallel as f64) * factor).round() as usize;
             self.record_adjustment(
                 "parallel",
                 old,
@@ -109,7 +116,7 @@ impl DynamicThresholdManager {
         if stats.strassen_benefit > hysteresis && stats.strassen_benefit.abs() > dead_zone {
             let old = self.current_strassen;
             let factor = (1.0 - max_adj).max(0.5);
-            self.current_strassen = ((self.current_strassen as f64) * factor) as usize;
+            self.current_strassen = ((self.current_strassen as f64) * factor).round() as usize;
             self.current_strassen = self.current_strassen.max(512);
             self.record_adjustment(
                 "strassen",
@@ -120,7 +127,7 @@ impl DynamicThresholdManager {
         } else if stats.strassen_benefit < -hysteresis && stats.strassen_benefit.abs() > dead_zone {
             let old = self.current_strassen;
             let factor = (1.0 + max_adj).min(2.0);
-            self.current_strassen = ((self.current_strassen as f64) * factor) as usize;
+            self.current_strassen = ((self.current_strassen as f64) * factor).round() as usize;
             self.record_adjustment(
                 "strassen",
                 old,
@@ -132,7 +139,7 @@ impl DynamicThresholdManager {
 
     fn record_adjustment(&mut self, name: &str, old: usize, new: usize, benefit: f64) {
         self.adjustment_count += 1;
-        self.adjustment_history.push(ThresholdAdjustment {
+        self.adjustment_history.push_back(ThresholdAdjustment {
             threshold_name: name.to_string(),
             old_value: old,
             new_value: new,
@@ -140,10 +147,11 @@ impl DynamicThresholdManager {
         });
         // Keep only the last 64 adjustments
         if self.adjustment_history.len() > 64 {
-            self.adjustment_history.remove(0);
+            self.adjustment_history.pop_front();
         }
     }
 
+    #[allow(clippy::cast_precision_loss)]
     fn compute_stats(&self) -> ThresholdStats {
         let n = self.metrics.len() as f64;
         let avg_fft_benefit = self.metrics.iter().map(|m| m.fft_speedup).sum::<f64>() / n;
@@ -196,7 +204,7 @@ impl DynamicThresholdManager {
             fft_threshold: self.current_fft,
             strassen_threshold: self.current_strassen,
             adjustment_count: self.adjustment_count,
-            adjustment_history: self.adjustment_history.clone(),
+            adjustment_history: self.adjustment_history.iter().cloned().collect(),
         }
     }
 

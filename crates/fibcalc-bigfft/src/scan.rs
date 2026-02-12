@@ -4,12 +4,18 @@ use num_bigint::BigUint;
 
 /// Count the number of significant bits in a `BigUint`.
 #[must_use]
+#[allow(clippy::cast_possible_truncation)]
 pub fn bit_length(n: &BigUint) -> usize {
     n.bits() as usize
 }
 
 /// Count the number of decimal digits in a `BigUint`.
 #[must_use]
+#[allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    clippy::cast_precision_loss
+)]
 pub fn digit_count(n: &BigUint) -> usize {
     if n == &BigUint::from(0u32) {
         return 1;

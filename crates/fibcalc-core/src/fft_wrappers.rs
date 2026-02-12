@@ -10,6 +10,7 @@ use crate::constants::DEFAULT_FFT_THRESHOLD;
 
 /// Multiply using FFT if operands are large enough, otherwise use default.
 #[must_use]
+#[allow(clippy::cast_possible_truncation)]
 pub fn smart_multiply(a: &BigUint, b: &BigUint, fft_threshold: usize) -> BigUint {
     let max_bits = a.bits().max(b.bits()) as usize;
     if max_bits >= fft_threshold {
@@ -21,6 +22,7 @@ pub fn smart_multiply(a: &BigUint, b: &BigUint, fft_threshold: usize) -> BigUint
 
 /// Square using FFT if operand is large enough.
 #[must_use]
+#[allow(clippy::cast_possible_truncation)]
 pub fn smart_square(a: &BigUint, fft_threshold: usize) -> BigUint {
     let bits = a.bits() as usize;
     if bits >= fft_threshold {

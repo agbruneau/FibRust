@@ -30,6 +30,7 @@ pub fn bench_fft(bit_length: usize) -> Duration {
 
 /// Benchmark multiplication at various bit lengths and return crossover info.
 #[must_use]
+#[allow(clippy::cast_possible_truncation)]
 pub fn find_fft_crossover(bit_lengths: &[usize]) -> Vec<CrossoverPoint> {
     bit_lengths
         .iter()
@@ -48,6 +49,7 @@ pub fn find_fft_crossover(bit_lengths: &[usize]) -> Vec<CrossoverPoint> {
 
 /// Measure parallel overhead by comparing sequential vs parallel work.
 #[must_use]
+#[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
 pub fn measure_parallel_overhead(bit_length: usize) -> ParallelOverhead {
     let a = make_number(bit_length);
     let b = make_number(bit_length);

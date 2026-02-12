@@ -101,13 +101,16 @@ impl CoreCalculator for FastDoublingMod {
         n: u64,
         opts: &Options,
     ) -> Result<BigUint, FibError> {
-        if opts.last_digits == 0 {
-            return Err(FibError::Config(
-                "FastDoublingMod requires last_digits > 0".into(),
-            ));
-        }
+        let digits = match opts.last_digits {
+            Some(d) if d > 0 => d,
+            _ => {
+                return Err(FibError::Config(
+                    "FastDoublingMod requires last_digits > 0".into(),
+                ));
+            }
+        };
 
-        let modulus = BigUint::from(10u32).pow(opts.last_digits);
+        let modulus = BigUint::from(10u32).pow(digits);
         let result = Self::fibonacci_mod(n, &modulus, cancel, observer, calc_index)?;
         observer.on_progress(&ProgressUpdate::done(calc_index, "FastDoublingMod"));
         Ok(result)
@@ -239,7 +242,7 @@ mod tests {
         let calc = FastDoublingMod::new();
         let cancel = CancellationToken::new();
         let observer = NoOpObserver::new();
-        let opts = Options::default(); // last_digits = 0
+        let opts = Options::default(); // last_digits = None
         let result = calc.calculate_core(&cancel, &observer, 0, 100, &opts);
         assert!(matches!(result, Err(FibError::Config(_))));
     }
@@ -250,7 +253,7 @@ mod tests {
         let cancel = CancellationToken::new();
         let observer = NoOpObserver::new();
         let opts = Options {
-            last_digits: 6,
+            last_digits: Some(6),
             ..Default::default()
         };
         // F(100) last 6 digits = 915075

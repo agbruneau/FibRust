@@ -39,12 +39,10 @@ pub trait ResultPresenter: Send + Sync {
 pub struct CalculationResult {
     /// Algorithm name.
     pub algorithm: String,
-    /// The computed value.
-    pub value: Option<BigUint>,
+    /// The computed value or an error message.
+    pub outcome: Result<BigUint, String>,
     /// Computation duration.
     pub duration: Duration,
-    /// Error message, if any.
-    pub error: Option<String>,
 }
 
 /// Null progress reporter (does nothing).
@@ -70,11 +68,10 @@ mod tests {
     fn calculation_result() {
         let result = CalculationResult {
             algorithm: "FastDoubling".into(),
-            value: Some(BigUint::from(55u32)),
+            outcome: Ok(BigUint::from(55u32)),
             duration: Duration::from_millis(100),
-            error: None,
         };
         assert_eq!(result.algorithm, "FastDoubling");
-        assert!(result.error.is_none());
+        assert!(result.outcome.is_ok());
     }
 }

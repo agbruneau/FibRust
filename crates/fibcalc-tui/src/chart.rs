@@ -6,6 +6,7 @@ use ratatui::widgets::{Block, Borders, Gauge};
 use ratatui::Frame;
 
 /// Render progress gauges for each algorithm.
+#[allow(clippy::cast_possible_truncation)]
 pub fn render_progress(frame: &mut Frame, area: Rect, algorithms: &[String], progress: &[f64]) {
     if algorithms.is_empty() {
         return;

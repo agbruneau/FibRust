@@ -62,6 +62,7 @@ impl LoggingObserver {
 }
 
 impl ProgressObserver for LoggingObserver {
+    #[allow(clippy::cast_possible_truncation)]
     fn on_progress(&self, update: &ProgressUpdate) {
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)

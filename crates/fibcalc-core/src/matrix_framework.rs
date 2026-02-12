@@ -14,7 +14,7 @@ pub fn execute_matrix_loop(
     cancel: &CancellationToken,
     observer: &dyn ProgressObserver,
     calc_index: usize,
-    algorithm_name: &str,
+    algorithm_name: &'static str,
 ) -> Result<BigUint, FibError> {
     let num_bits = 64 - n.leading_zeros();
     let mut state = MatrixState::new();

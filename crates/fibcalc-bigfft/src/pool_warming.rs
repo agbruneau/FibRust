@@ -71,6 +71,11 @@ pub fn predict_sizes(n: u64) -> SizePrediction {
 ///
 /// F(n) ~ phi^n / sqrt(5), so log2(F(n)) ~ n * log2(phi) ~ n * 0.6942.
 #[must_use]
+#[allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    clippy::cast_precision_loss
+)]
 pub fn estimate_result_bits(n: u64) -> usize {
     if n <= 1 {
         return 1;

@@ -7,7 +7,9 @@ use fibcalc_core::constants::exit_codes;
 #[allow(dead_code)]
 pub fn handle_error(err: &FibError) -> i32 {
     match err {
-        FibError::Calculation(_) => exit_codes::ERROR_GENERIC,
+        FibError::Calculation(_) | FibError::Overflow(_, _) | FibError::InvalidInput(_) => {
+            exit_codes::ERROR_GENERIC
+        }
         FibError::Config(_) => exit_codes::ERROR_CONFIG,
         FibError::Cancelled => exit_codes::ERROR_CANCELED,
         FibError::Timeout(_) => exit_codes::ERROR_TIMEOUT,

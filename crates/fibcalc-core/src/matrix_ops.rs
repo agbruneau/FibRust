@@ -25,6 +25,7 @@ pub fn matrix_square(m: &Matrix) -> Matrix {
 /// For 2x2 Fibonacci matrices with the symmetry property (b == c),
 /// we can reduce the number of multiplications.
 #[must_use]
+#[allow(clippy::cast_possible_truncation)]
 pub fn matrix_multiply_strassen(a: &Matrix, b: &Matrix, threshold: usize) -> Matrix {
     let max_bits = a.a.bits().max(b.a.bits()) as usize;
 

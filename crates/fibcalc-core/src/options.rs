@@ -5,6 +5,20 @@ use crate::constants::{
 };
 
 /// Options for Fibonacci calculation.
+///
+/// # Example
+/// ```
+/// use fibcalc_core::options::Options;
+///
+/// let opts = Options::default();
+/// assert_eq!(opts.parallel_threshold, 4096);
+/// assert!(opts.last_digits.is_none());
+///
+/// // Normalize replaces zero thresholds with defaults
+/// let custom = Options { parallel_threshold: 0, ..Options::default() };
+/// let normalized = custom.normalize();
+/// assert_eq!(normalized.parallel_threshold, 4096);
+/// ```
 #[derive(Debug, Clone)]
 pub struct Options {
     /// Threshold (in bits) for parallel multiplication.
@@ -13,10 +27,10 @@ pub struct Options {
     pub fft_threshold: usize,
     /// Threshold (in bits) for Strassen multiplication.
     pub strassen_threshold: usize,
-    /// Number of last digits to compute (0 = full number).
-    pub last_digits: u32,
-    /// Memory limit in bytes (0 = unlimited).
-    pub memory_limit: usize,
+    /// Number of last digits to compute (`None` = full number).
+    pub last_digits: Option<u32>,
+    /// Memory limit in bytes (`None` = unlimited).
+    pub memory_limit: Option<usize>,
     /// Whether to show verbose output.
     pub verbose: bool,
     /// Whether to show detailed output.
@@ -29,8 +43,8 @@ impl Default for Options {
             parallel_threshold: DEFAULT_PARALLEL_THRESHOLD,
             fft_threshold: DEFAULT_FFT_THRESHOLD,
             strassen_threshold: DEFAULT_STRASSEN_THRESHOLD,
-            last_digits: 0,
-            memory_limit: 0,
+            last_digits: None,
+            memory_limit: None,
             verbose: false,
             details: false,
         }
@@ -64,7 +78,7 @@ mod tests {
         assert_eq!(opts.parallel_threshold, DEFAULT_PARALLEL_THRESHOLD);
         assert_eq!(opts.fft_threshold, DEFAULT_FFT_THRESHOLD);
         assert_eq!(opts.strassen_threshold, DEFAULT_STRASSEN_THRESHOLD);
-        assert_eq!(opts.last_digits, 0);
+        assert!(opts.last_digits.is_none());
     }
 
     #[test]

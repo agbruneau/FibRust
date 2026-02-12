@@ -82,16 +82,15 @@ fibcalc-cli = { path = "crates/fibcalc-cli" }
 fibcalc-tui = { path = "crates/fibcalc-tui" }
 fibcalc-calibration = { path = "crates/fibcalc-calibration" }
 
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
 [workspace.lints.clippy]
 pedantic = { level = "warn", priority = -1 }
 module_name_repetitions = "allow"
 must_use_candidate = "allow"
 missing_errors_doc = "allow"
 missing_panics_doc = "allow"
-cast_possible_truncation = "allow"
-cast_sign_loss = "allow"
-cast_precision_loss = "allow"
-cast_lossless = "allow"
 similar_names = "allow"
 struct_excessive_bools = "allow"
 items_after_statements = "allow"
@@ -116,6 +115,7 @@ codegen-units = 1
 strip = true
 opt-level = 3
 panic = "abort"
+overflow-checks = true
 
 [profile.bench]
 inherits = "release"

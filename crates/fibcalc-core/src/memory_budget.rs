@@ -14,6 +14,11 @@ pub struct MemoryEstimate {
 impl MemoryEstimate {
     /// Estimate memory usage for computing F(n).
     #[must_use]
+    #[allow(
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss,
+        clippy::cast_precision_loss
+    )]
     pub fn estimate(n: u64) -> Self {
         // F(n) has approximately n * log2(phi) / 8 bytes
         // phi = (1 + sqrt(5)) / 2, log2(phi) ≈ 0.6942
@@ -31,9 +36,14 @@ impl MemoryEstimate {
     }
 
     /// Check if the computation fits within the given memory limit.
+    ///
+    /// `None` means unlimited (always fits).
     #[must_use]
-    pub fn fits_in(&self, limit: usize) -> bool {
-        limit == 0 || self.total_bytes <= limit
+    pub fn fits_in(&self, limit: Option<usize>) -> bool {
+        match limit {
+            None => true,
+            Some(l) => self.total_bytes <= l,
+        }
     }
 }
 
@@ -85,7 +95,7 @@ mod tests {
     #[test]
     fn fits_in_unlimited() {
         let est = MemoryEstimate::estimate(100_000_000);
-        assert!(est.fits_in(0)); // 0 = unlimited
+        assert!(est.fits_in(None)); // None = unlimited
     }
 
     #[test]

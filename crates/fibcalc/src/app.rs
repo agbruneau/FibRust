@@ -38,18 +38,34 @@ pub fn run(config: &AppConfig) -> Result<()> {
     run_cli(config)
 }
 
-fn run_cli(config: &AppConfig) -> Result<()> {
-    let opts = Options {
+/// Build `Options` from `AppConfig`, validating the memory-limit string.
+fn build_options(config: &AppConfig) -> Result<Options> {
+    Ok(Options {
         parallel_threshold: config.threshold,
         fft_threshold: config.fft_threshold,
         strassen_threshold: config.strassen_threshold,
-        last_digits: config.last_digits,
-        memory_limit: fibcalc_core::memory_budget::parse_memory_limit(&config.memory_limit)
-            .unwrap_or(0),
+        last_digits: if config.last_digits == 0 {
+            None
+        } else {
+            Some(config.last_digits)
+        },
+        memory_limit: if config.memory_limit.is_empty() {
+            None
+        } else {
+            Some(
+                fibcalc_core::memory_budget::parse_memory_limit(&config.memory_limit).map_err(
+                    |e| anyhow::anyhow!("invalid --memory-limit '{}': {e}", config.memory_limit),
+                )?,
+            )
+        },
         verbose: config.verbose,
         details: config.details,
     }
-    .normalize();
+    .normalize())
+}
+
+fn run_cli(config: &AppConfig) -> Result<()> {
+    let opts = build_options(config)?;
 
     // Memory budget check
     let estimate = fibcalc_core::memory_budget::MemoryEstimate::estimate(config.n);
@@ -57,7 +73,7 @@ fn run_cli(config: &AppConfig) -> Result<()> {
         anyhow::bail!(
             "Estimated memory ({} MB) exceeds limit ({} MB)",
             estimate.total_bytes / (1024 * 1024),
-            opts.memory_limit / (1024 * 1024)
+            opts.memory_limit.unwrap_or(0) / (1024 * 1024)
         );
     }
 
@@ -82,7 +98,7 @@ fn run_cli(config: &AppConfig) -> Result<()> {
     // Present results
     let presenter = CLIResultPresenter::new(config.verbose, config.quiet);
     for result in &results {
-        if let Some(value) = &result.value {
+        if let Ok(value) = &result.outcome {
             presenter.present_result(
                 &result.algorithm,
                 config.n,
@@ -90,7 +106,7 @@ fn run_cli(config: &AppConfig) -> Result<()> {
                 result.duration,
                 config.details,
             );
-        } else if let Some(error) = &result.error {
+        } else if let Err(error) = &result.outcome {
             presenter.present_error(error);
         }
     }
@@ -102,8 +118,8 @@ fn run_cli(config: &AppConfig) -> Result<()> {
 
     // Write to file if requested
     if let Some(ref path) = config.output {
-        if let Some(result) = results.iter().find(|r| r.value.is_some()) {
-            write_to_file(path, result.value.as_ref().unwrap())?;
+        if let Some(result) = results.iter().find(|r| r.outcome.is_ok()) {
+            write_to_file(path, result.outcome.as_ref().unwrap())?;
         }
     }
 
@@ -134,17 +150,7 @@ fn run_calibration(config: &AppConfig) -> Result<()> {
 }
 
 fn run_tui(config: &AppConfig) -> Result<()> {
-    let opts = Options {
-        parallel_threshold: config.threshold,
-        fft_threshold: config.fft_threshold,
-        strassen_threshold: config.strassen_threshold,
-        last_digits: config.last_digits,
-        memory_limit: fibcalc_core::memory_budget::parse_memory_limit(&config.memory_limit)
-            .unwrap_or(0),
-        verbose: config.verbose,
-        details: config.details,
-    }
-    .normalize();
+    let opts = build_options(config)?;
 
     // Memory budget check
     let estimate = fibcalc_core::memory_budget::MemoryEstimate::estimate(config.n);
@@ -152,7 +158,7 @@ fn run_tui(config: &AppConfig) -> Result<()> {
         anyhow::bail!(
             "Estimated memory ({} MB) exceeds limit ({} MB)",
             estimate.total_bytes / (1024 * 1024),
-            opts.memory_limit / (1024 * 1024)
+            opts.memory_limit.unwrap_or(0) / (1024 * 1024)
         );
     }
 
@@ -211,7 +217,7 @@ fn run_tui(config: &AppConfig) -> Result<()> {
 
         // Send results to TUI
         for result in &results {
-            if result.value.is_some() {
+            if result.outcome.is_ok() {
                 let _ = tx.send(fibcalc_tui::TuiMessage::Complete {
                     algorithm: result.algorithm.clone(),
                     duration: result.duration,
@@ -220,7 +226,7 @@ fn run_tui(config: &AppConfig) -> Result<()> {
                     "F({n}) computed by {} in {:.3?}",
                     result.algorithm, result.duration
                 )));
-            } else if let Some(error) = &result.error {
+            } else if let Err(error) = &result.outcome {
                 let _ = tx.send(fibcalc_tui::TuiMessage::Error(format!(
                     "{}: {error}",
                     result.algorithm
@@ -241,6 +247,9 @@ fn run_tui(config: &AppConfig) -> Result<()> {
     Ok(())
 }
 
+/// # Panics
+///
+/// Panics if the Ctrl+C signal handler cannot be registered with the OS.
 fn ctrlc_handler(cancel: CancellationToken) {
     ctrlc::set_handler(move || {
         cancel.cancel();
@@ -281,19 +290,9 @@ mod tests {
         }
     }
 
-    /// Build Options from config (mirrors run_cli logic).
+    /// Build Options from config (delegates to the shared build_options helper).
     fn opts_from_config(config: &AppConfig) -> Options {
-        Options {
-            parallel_threshold: config.threshold,
-            fft_threshold: config.fft_threshold,
-            strassen_threshold: config.strassen_threshold,
-            last_digits: config.last_digits,
-            memory_limit: fibcalc_core::memory_budget::parse_memory_limit(&config.memory_limit)
-                .unwrap_or(0),
-            verbose: config.verbose,
-            details: config.details,
-        }
-        .normalize()
+        build_options(config).expect("test config should always produce valid options")
     }
 
     /// Execute the core logic of run_cli without the ctrlc handler.
@@ -307,7 +306,7 @@ mod tests {
             anyhow::bail!(
                 "Estimated memory ({} MB) exceeds limit ({} MB)",
                 estimate.total_bytes / (1024 * 1024),
-                opts.memory_limit / (1024 * 1024)
+                opts.memory_limit.unwrap_or(0) / (1024 * 1024)
             );
         }
 
@@ -325,7 +324,7 @@ mod tests {
 
         let presenter = CLIResultPresenter::new(config.verbose, config.quiet);
         for result in &results {
-            if let Some(value) = &result.value {
+            if let Ok(value) = &result.outcome {
                 presenter.present_result(
                     &result.algorithm,
                     config.n,
@@ -333,7 +332,7 @@ mod tests {
                     result.duration,
                     config.details,
                 );
-            } else if let Some(error) = &result.error {
+            } else if let Err(error) = &result.outcome {
                 presenter.present_error(error);
             }
         }
@@ -343,8 +342,8 @@ mod tests {
         }
 
         if let Some(ref path) = config.output {
-            if let Some(result) = results.iter().find(|r| r.value.is_some()) {
-                write_to_file(path, result.value.as_ref().unwrap())?;
+            if let Some(result) = results.iter().find(|r| r.outcome.is_ok()) {
+                write_to_file(path, result.outcome.as_ref().unwrap())?;
             }
         }
 
@@ -620,7 +619,7 @@ mod tests {
         assert_eq!(opts.parallel_threshold, 8192);
         assert_eq!(opts.fft_threshold, 600_000);
         assert_eq!(opts.strassen_threshold, 4096);
-        assert_eq!(opts.last_digits, 20);
+        assert_eq!(opts.last_digits, Some(20));
         assert!(opts.verbose);
         assert!(opts.details);
     }
@@ -630,8 +629,8 @@ mod tests {
         let config = test_config();
         let opts = opts_from_config(&config);
         let estimate = fibcalc_core::memory_budget::MemoryEstimate::estimate(config.n);
-        // Default memory_limit="" parses to 0, which means unlimited
-        assert_eq!(opts.memory_limit, 0);
+        // Default memory_limit="" parses to None, which means unlimited
+        assert_eq!(opts.memory_limit, None);
         assert!(estimate.fits_in(opts.memory_limit));
     }
 

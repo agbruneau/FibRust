@@ -97,7 +97,7 @@ impl ResultPresenter for CLIResultPresenter {
         println!("\nComparison Results:");
         println!("{:-<60}", "");
         for result in results {
-            let status = if result.error.is_some() {
+            let status = if result.outcome.is_err() {
                 "ERROR"
             } else {
                 "OK"
@@ -225,9 +225,8 @@ mod tests {
         let presenter = CLIResultPresenter::new(false, true);
         let results = vec![CalculationResult {
             algorithm: "FastDoubling".into(),
-            value: Some(BigUint::from(55u64)),
+            outcome: Ok(BigUint::from(55u64)),
             duration: Duration::from_millis(5),
-            error: None,
         }];
         presenter.present_comparison(&results);
         // Should not print anything in quiet mode
@@ -239,15 +238,13 @@ mod tests {
         let results = vec![
             CalculationResult {
                 algorithm: "FastDoubling".into(),
-                value: Some(BigUint::from(55u64)),
+                outcome: Ok(BigUint::from(55u64)),
                 duration: Duration::from_millis(5),
-                error: None,
             },
             CalculationResult {
                 algorithm: "Matrix".into(),
-                value: Some(BigUint::from(55u64)),
+                outcome: Ok(BigUint::from(55u64)),
                 duration: Duration::from_millis(10),
-                error: None,
             },
         ];
         presenter.present_comparison(&results);
@@ -259,15 +256,13 @@ mod tests {
         let results = vec![
             CalculationResult {
                 algorithm: "FastDoubling".into(),
-                value: Some(BigUint::from(55u64)),
+                outcome: Ok(BigUint::from(55u64)),
                 duration: Duration::from_millis(5),
-                error: None,
             },
             CalculationResult {
                 algorithm: "FFT".into(),
-                value: None,
+                outcome: Err("computation failed".into()),
                 duration: Duration::from_millis(0),
-                error: Some("computation failed".into()),
             },
         ];
         presenter.present_comparison(&results);

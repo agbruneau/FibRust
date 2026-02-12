@@ -40,19 +40,10 @@ pub fn execute_calculations_with_observer(
         let result = calc.calculate(cancel, observer, 0, n, opts);
         let duration = start.elapsed();
 
-        return vec![match result {
-            Ok(value) => CalculationResult {
-                algorithm: calc.name().to_string(),
-                value: Some(value),
-                duration,
-                error: None,
-            },
-            Err(e) => CalculationResult {
-                algorithm: calc.name().to_string(),
-                value: None,
-                duration,
-                error: Some(e.to_string()),
-            },
+        return vec![CalculationResult {
+            algorithm: calc.name().to_string(),
+            outcome: result.map_err(|e| e.to_string()),
+            duration,
         }];
     }
 
@@ -72,9 +63,8 @@ pub fn execute_calculations_with_observer(
                 if start_time.elapsed() > timeout {
                     return CalculationResult {
                         algorithm: calc.name().to_string(),
-                        value: None,
+                        outcome: Err("timeout".to_string()),
                         duration: start.elapsed(),
-                        error: Some("timeout".to_string()),
                     };
                 }
             }
@@ -82,19 +72,10 @@ pub fn execute_calculations_with_observer(
             let result = calc.calculate(cancel, observer, i, n, opts);
             let duration = start.elapsed();
 
-            match result {
-                Ok(value) => CalculationResult {
-                    algorithm: calc.name().to_string(),
-                    value: Some(value),
-                    duration,
-                    error: None,
-                },
-                Err(e) => CalculationResult {
-                    algorithm: calc.name().to_string(),
-                    value: None,
-                    duration,
-                    error: Some(e.to_string()),
-                },
+            CalculationResult {
+                algorithm: calc.name().to_string(),
+                outcome: result.map_err(|e| e.to_string()),
+                duration,
             }
         })
         .collect();
@@ -104,19 +85,26 @@ pub fn execute_calculations_with_observer(
 
 /// Analyze comparison results for mismatches.
 pub fn analyze_comparison_results(results: &[CalculationResult]) -> Result<(), FibError> {
-    let valid_results: Vec<&CalculationResult> = results
-        .iter()
-        .filter(|r| r.value.is_some() && r.error.is_none())
-        .collect();
+    let valid_results: Vec<&CalculationResult> =
+        results.iter().filter(|r| r.outcome.is_ok()).collect();
 
     if valid_results.is_empty() {
         return Err(FibError::Calculation("no valid results".into()));
     }
 
     // Compare all results to the first valid one
-    let first_value = valid_results[0].value.as_ref().unwrap();
+    let Ok(first_value) = &valid_results[0].outcome else {
+        return Err(FibError::Calculation(
+            "unexpected error in valid result".into(),
+        ));
+    };
     for result in &valid_results[1..] {
-        if result.value.as_ref().unwrap() != first_value {
+        let Ok(val) = &result.outcome else {
+            return Err(FibError::Calculation(
+                "unexpected error in valid result".into(),
+            ));
+        };
+        if val != first_value {
             return Err(FibError::Mismatch);
         }
     }
@@ -139,9 +127,9 @@ mod tests {
         let cancel = CancellationToken::new();
         let results = execute_calculations(&[calc], 100, &opts, &cancel, None);
         assert_eq!(results.len(), 1);
-        assert!(results[0].error.is_none());
+        assert!(results[0].outcome.is_ok());
         assert_eq!(
-            results[0].value.as_ref().unwrap(),
+            results[0].outcome.as_ref().unwrap(),
             &BigUint::parse_bytes(b"354224848179261915075", 10).unwrap()
         );
     }
@@ -151,15 +139,13 @@ mod tests {
         let results = vec![
             CalculationResult {
                 algorithm: "A".into(),
-                value: Some(BigUint::from(55u32)),
+                outcome: Ok(BigUint::from(55u32)),
                 duration: Duration::from_millis(1),
-                error: None,
             },
             CalculationResult {
                 algorithm: "B".into(),
-                value: Some(BigUint::from(55u32)),
+                outcome: Ok(BigUint::from(55u32)),
                 duration: Duration::from_millis(2),
-                error: None,
             },
         ];
         assert!(analyze_comparison_results(&results).is_ok());
@@ -170,15 +156,13 @@ mod tests {
         let results = vec![
             CalculationResult {
                 algorithm: "A".into(),
-                value: Some(BigUint::from(55u32)),
+                outcome: Ok(BigUint::from(55u32)),
                 duration: Duration::from_millis(1),
-                error: None,
             },
             CalculationResult {
                 algorithm: "B".into(),
-                value: Some(BigUint::from(56u32)),
+                outcome: Ok(BigUint::from(56u32)),
                 duration: Duration::from_millis(2),
-                error: None,
             },
         ];
         assert!(matches!(
@@ -191,9 +175,8 @@ mod tests {
     fn analyze_no_valid_results() {
         let results = vec![CalculationResult {
             algorithm: "A".into(),
-            value: None,
+            outcome: Err("failed".into()),
             duration: Duration::from_millis(1),
-            error: Some("failed".into()),
         }];
         assert!(matches!(
             analyze_comparison_results(&results),
@@ -205,9 +188,8 @@ mod tests {
     fn analyze_single_valid_result() {
         let results = vec![CalculationResult {
             algorithm: "A".into(),
-            value: Some(BigUint::from(55u32)),
+            outcome: Ok(BigUint::from(55u32)),
             duration: Duration::from_millis(1),
-            error: None,
         }];
         assert!(analyze_comparison_results(&results).is_ok());
     }
@@ -218,15 +200,13 @@ mod tests {
         let results = vec![
             CalculationResult {
                 algorithm: "A".into(),
-                value: Some(BigUint::from(55u32)),
+                outcome: Ok(BigUint::from(55u32)),
                 duration: Duration::from_millis(1),
-                error: None,
             },
             CalculationResult {
                 algorithm: "B".into(),
-                value: None,
+                outcome: Err("timeout".into()),
                 duration: Duration::from_millis(2),
-                error: Some("timeout".into()),
             },
         ];
         assert!(analyze_comparison_results(&results).is_ok());
@@ -247,21 +227,18 @@ mod tests {
         let results = vec![
             CalculationResult {
                 algorithm: "A".into(),
-                value: Some(val.clone()),
+                outcome: Ok(val.clone()),
                 duration: Duration::from_millis(1),
-                error: None,
             },
             CalculationResult {
                 algorithm: "B".into(),
-                value: Some(val.clone()),
+                outcome: Ok(val.clone()),
                 duration: Duration::from_millis(2),
-                error: None,
             },
             CalculationResult {
                 algorithm: "C".into(),
-                value: Some(val),
+                outcome: Ok(val),
                 duration: Duration::from_millis(3),
-                error: None,
             },
         ];
         assert!(analyze_comparison_results(&results).is_ok());
@@ -273,21 +250,18 @@ mod tests {
         let results = vec![
             CalculationResult {
                 algorithm: "A".into(),
-                value: Some(val.clone()),
+                outcome: Ok(val.clone()),
                 duration: Duration::from_millis(1),
-                error: None,
             },
             CalculationResult {
                 algorithm: "B".into(),
-                value: Some(val),
+                outcome: Ok(val),
                 duration: Duration::from_millis(2),
-                error: None,
             },
             CalculationResult {
                 algorithm: "C".into(),
-                value: Some(BigUint::from(56u32)),
+                outcome: Ok(BigUint::from(56u32)),
                 duration: Duration::from_millis(3),
-                error: None,
             },
         ];
         assert!(matches!(
@@ -311,17 +285,16 @@ mod tests {
         // Both should succeed
         for r in &results {
             assert!(
-                r.error.is_none(),
+                r.outcome.is_ok(),
                 "calculator {} failed: {:?}",
                 r.algorithm,
-                r.error
+                r.outcome
             );
-            assert!(r.value.is_some());
         }
         // Both should compute the same value
         assert_eq!(
-            results[0].value.as_ref().unwrap(),
-            results[1].value.as_ref().unwrap()
+            results[0].outcome.as_ref().unwrap(),
+            results[1].outcome.as_ref().unwrap()
         );
     }
 
@@ -338,7 +311,8 @@ mod tests {
         // For very large n, it should be cancelled. With n=10M and cancellation before start,
         // the FibCalculator checks cancellation before delegating to core.
         // n=10M > 93 so it hits the cancellation check
-        assert!(results[0].error.is_some() || results[0].value.is_some());
+        // Either outcome (Ok or Err) is valid here
+        assert!(results[0].outcome.is_ok() || results[0].outcome.is_err());
     }
 
     #[test]
@@ -368,7 +342,7 @@ mod tests {
         let results =
             execute_calculations_with_observer(&[calc], 50, &opts, &cancel, None, &observer);
         assert_eq!(results.len(), 1);
-        assert!(results[0].value.is_some());
+        assert!(results[0].outcome.is_ok());
         // The observer should have been called at least once (the done notification)
         assert!(observer.count.load(Ordering::Relaxed) >= 1);
     }
@@ -382,8 +356,8 @@ mod tests {
         // Test the fast path (n <= 93)
         let results = execute_calculations(&[calc], 10, &opts, &cancel, None);
         assert_eq!(results.len(), 1);
-        assert!(results[0].error.is_none());
-        assert_eq!(results[0].value.as_ref().unwrap(), &BigUint::from(55u32));
+        assert!(results[0].outcome.is_ok());
+        assert_eq!(results[0].outcome.as_ref().unwrap(), &BigUint::from(55u32));
     }
 
     #[test]
@@ -396,51 +370,31 @@ mod tests {
         let timeout = Some(Duration::from_secs(30));
         let results = execute_calculations(&[calc], 50, &opts, &cancel, timeout);
         assert_eq!(results.len(), 1);
-        assert!(results[0].value.is_some());
-        assert!(results[0].error.is_none());
+        assert!(results[0].outcome.is_ok());
     }
 
     #[test]
     fn analyze_results_ignores_error_entries() {
-        // Results with value=None and error=Some should be ignored in comparison
+        // Results with Err outcome should be ignored in comparison
         let val = BigUint::from(55u32);
         let results = vec![
             CalculationResult {
                 algorithm: "A".into(),
-                value: Some(val.clone()),
+                outcome: Ok(val.clone()),
                 duration: Duration::from_millis(1),
-                error: None,
             },
             CalculationResult {
                 algorithm: "B".into(),
-                value: None,
+                outcome: Err("failed".into()),
                 duration: Duration::from_millis(2),
-                error: Some("failed".into()),
             },
             CalculationResult {
                 algorithm: "C".into(),
-                value: Some(val),
+                outcome: Ok(val),
                 duration: Duration::from_millis(3),
-                error: None,
             },
         ];
         // Should succeed: A and C match, B is ignored
         assert!(analyze_comparison_results(&results).is_ok());
-    }
-
-    #[test]
-    fn analyze_result_with_value_and_error_is_excluded() {
-        // A result with both value and error set should be excluded (error is Some)
-        let results = vec![CalculationResult {
-            algorithm: "A".into(),
-            value: Some(BigUint::from(55u32)),
-            duration: Duration::from_millis(1),
-            error: Some("partial".into()),
-        }];
-        // The filter requires error.is_none(), so this counts as no valid results
-        assert!(matches!(
-            analyze_comparison_results(&results),
-            Err(FibError::Calculation(_))
-        ));
     }
 }
