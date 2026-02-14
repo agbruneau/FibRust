@@ -2,6 +2,75 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
+
+**Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
+
+## 1. Think Before Coding
+
+**Don't assume. Don't hide confusion. Surface tradeoffs.**
+
+Before implementing:
+
+- State your assumptions explicitly. If uncertain, ask.
+- If multiple interpretations exist, present them - don't pick silently.
+- If a simpler approach exists, say so. Push back when warranted.
+- If something is unclear, stop. Name what's confusing. Ask.
+
+## 2. Simplicity First
+
+**Minimum code that solves the problem. Nothing speculative.**
+
+- No features beyond what was asked.
+- No abstractions for single-use code.
+- No "flexibility" or "configurability" that wasn't requested.
+- No error handling for impossible scenarios.
+- If you write 200 lines and it could be 50, rewrite it.
+
+Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
+
+## 3. Surgical Changes
+
+**Touch only what you must. Clean up only your own mess.**
+
+When editing existing code:
+
+- Don't "improve" adjacent code, comments, or formatting.
+- Don't refactor things that aren't broken.
+- Match existing style, even if you'd do it differently.
+- If you notice unrelated dead code, mention it - don't delete it.
+
+When your changes create orphans:
+
+- Remove imports/variables/functions that YOUR changes made unused.
+- Don't remove pre-existing dead code unless asked.
+
+The test: Every changed line should trace directly to the user's request.
+
+## 4. Goal-Driven Execution
+
+**Define success criteria. Loop until verified.**
+
+Transform tasks into verifiable goals:
+
+- "Add validation" → "Write tests for invalid inputs, then make them pass"
+- "Fix the bug" → "Write a test that reproduces it, then make it pass"
+- "Refactor X" → "Ensure tests pass before and after"
+
+For multi-step tasks, state a brief plan:
+
+```
+1. [Step] → verify: [check]
+2. [Step] → verify: [check]
+3. [Step] → verify: [check]
+```
+
+Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
+
+---
+
+**These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
+
 ## Project Overview
 
 FibCalc-rs is a high-performance Fibonacci calculator ported from Go ([FibGo](https://github.com/agbruneau/Fibonacci)) to Rust. It implements three algorithms (Fast Doubling, Matrix Exponentiation, FFT-Based) with CLI and interactive TUI modes, automatic calibration, dynamic thresholds, and optional GMP support via the `rug` crate.
@@ -59,15 +128,15 @@ fibcalc-calibration            -- auto-tuning, adaptive benchmarks
 
 ### Workspace (7 crates in `crates/`)
 
-| Crate | Type | Lines | Role |
-|-------|------|-------|------|
-| `fibcalc` | bin | ~950 | Entry point, clap config, app orchestration, error handling |
-| `fibcalc-core` | lib | ~5,000 | Fibonacci algorithms, traits, strategies, observers, thresholds, arena |
-| `fibcalc-bigfft` | lib | ~2,500 | FFT multiplication, Fermat numbers, transform cache, bump allocator |
-| `fibcalc-orchestration` | lib | ~550 | Parallel execution, calculator selection, result analysis |
-| `fibcalc-cli` | lib | ~700 | CLI output, progress bars (indicatif), shell completion |
-| `fibcalc-tui` | lib | ~3,400 | TUI dashboard (ratatui, Elm architecture), sparklines, charts |
-| `fibcalc-calibration` | lib | ~1,200 | Auto-tuning, adaptive benchmarks, calibration profiles |
+| Crate                     | Type | Lines  | Role                                                                   |
+| ------------------------- | ---- | ------ | ---------------------------------------------------------------------- |
+| `fibcalc`               | bin  | ~950   | Entry point, clap config, app orchestration, error handling            |
+| `fibcalc-core`          | lib  | ~5,000 | Fibonacci algorithms, traits, strategies, observers, thresholds, arena |
+| `fibcalc-bigfft`        | lib  | ~2,500 | FFT multiplication, Fermat numbers, transform cache, bump allocator    |
+| `fibcalc-orchestration` | lib  | ~550   | Parallel execution, calculator selection, result analysis              |
+| `fibcalc-cli`           | lib  | ~700   | CLI output, progress bars (indicatif), shell completion                |
+| `fibcalc-tui`           | lib  | ~3,400 | TUI dashboard (ratatui, Elm architecture), sparklines, charts          |
+| `fibcalc-calibration`   | lib  | ~1,200 | Auto-tuning, adaptive benchmarks, calibration profiles                 |
 
 ### Key Traits
 
@@ -158,15 +227,15 @@ Calibration profile stored in `.fibcalc_calibration.json` (gitignored).
 
 ## Test Structure
 
-| Location | Type | Count |
-|----------|------|-------|
-| `crates/*/src/**/*.rs` (inline) | Unit tests | ~625 |
-| `tests/golden.rs` + `tests/testdata/` | Golden file integration | 17 |
-| `crates/fibcalc/tests/e2e.rs` | E2E CLI tests (assert_cmd) | 23 |
-| `crates/fibcalc/tests/proptest.rs` | Property-based | 4 |
-| `crates/fibcalc-core/tests/properties.rs` | Algorithm properties | 20 |
-| `fuzz/fuzz_targets/` | Fuzz (4 targets) | -- |
-| `crates/fibcalc-core/benches/fibonacci.rs` | Criterion benchmarks | -- |
+| Location                                     | Type                       | Count |
+| -------------------------------------------- | -------------------------- | ----- |
+| `crates/*/src/**/*.rs` (inline)            | Unit tests                 | ~630  |
+| `tests/golden.rs` + `tests/testdata/`    | Golden file integration    | 18    |
+| `crates/fibcalc/tests/e2e.rs`              | E2E CLI tests (assert_cmd) | 23    |
+| `crates/fibcalc/tests/proptest.rs`         | Property-based             | 7     |
+| `crates/fibcalc-core/tests/properties.rs`  | Algorithm properties       | 4     |
+| `fuzz/fuzz_targets/`                       | Fuzz (4 targets)           | --    |
+| `crates/fibcalc-core/benches/fibonacci.rs` | Criterion benchmarks       | --    |
 
 ## License Policy (`deny.toml`)
 

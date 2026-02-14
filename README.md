@@ -287,7 +287,7 @@ cargo test -- --nocapture             # With stdout output
 | `fibcalc` | 39 | 80-100% |
 | `fibcalc-cli` | 48 | 95-100% |
 | `fibcalc-orchestration` | 20 | 95-100% |
-| **Workspace (golden + e2e + proptest)** | 44 | -- |
+| **Workspace (golden + e2e + proptest + properties)** | 51 | -- |
 | **Doc-tests** | 9 | -- |
 
 ### Test Types
