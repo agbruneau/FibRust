@@ -1,48 +1,12 @@
-//! CLI result presenter and progress reporter.
+//! CLI result presenter.
 
-use std::io::{self, Write};
 use std::time::Duration;
 
 use num_bigint::BigUint;
 
-use fibcalc_core::progress::ProgressUpdate;
-use fibcalc_orchestration::interfaces::{CalculationResult, ProgressReporter, ResultPresenter};
+use fibcalc_orchestration::interfaces::{CalculationResult, ResultPresenter};
 
 use crate::output::{format_duration, format_number, format_result};
-
-/// CLI progress reporter using stderr.
-pub struct CLIProgressReporter {
-    quiet: bool,
-}
-
-impl CLIProgressReporter {
-    #[must_use]
-    pub fn new(quiet: bool) -> Self {
-        Self { quiet }
-    }
-}
-
-impl ProgressReporter for CLIProgressReporter {
-    fn report(&self, update: &ProgressUpdate) {
-        if self.quiet {
-            return;
-        }
-        eprint!(
-            "\r  [{:>6.1}%] {} — step {}/{}",
-            update.progress * 100.0,
-            update.algorithm,
-            update.current_step,
-            update.total_steps,
-        );
-        let _ = io::stderr().flush();
-    }
-
-    fn complete(&self) {
-        if !self.quiet {
-            eprintln!();
-        }
-    }
-}
 
 /// CLI result presenter.
 pub struct CLIResultPresenter {
@@ -119,6 +83,7 @@ impl ResultPresenter for CLIResultPresenter {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use fibcalc_core::calculator::FibError;
 
     #[test]
     fn presenter_quiet_mode() {
@@ -127,62 +92,6 @@ mod tests {
         // (Testing output capture is complex, so we just verify construction)
         assert!(presenter.quiet);
     }
-
-    #[test]
-    fn reporter_quiet_mode() {
-        let reporter = CLIProgressReporter::new(true);
-        let update = ProgressUpdate::new(0, "test", 0.5, 1, 2);
-        reporter.report(&update);
-        reporter.complete();
-        // Should not panic in quiet mode
-    }
-
-    // --- CLIProgressReporter additional tests ---
-
-    #[test]
-    fn reporter_non_quiet_mode() {
-        let reporter = CLIProgressReporter::new(false);
-        let update = ProgressUpdate::new(0, "FastDoubling", 0.5, 50, 100);
-        reporter.report(&update);
-        reporter.complete();
-        // Should not panic in non-quiet mode
-    }
-
-    #[test]
-    fn reporter_report_at_zero_progress() {
-        let reporter = CLIProgressReporter::new(false);
-        let update = ProgressUpdate::new(0, "Matrix", 0.0, 0, 100);
-        reporter.report(&update);
-        reporter.complete();
-    }
-
-    #[test]
-    fn reporter_report_at_full_progress() {
-        let reporter = CLIProgressReporter::new(false);
-        let update = ProgressUpdate::new(0, "FFT", 1.0, 100, 100);
-        reporter.report(&update);
-        reporter.complete();
-    }
-
-    #[test]
-    fn reporter_multiple_updates() {
-        let reporter = CLIProgressReporter::new(false);
-        for step in 0..=10 {
-            let progress = step as f64 / 10.0;
-            let update = ProgressUpdate::new(0, "FastDoubling", progress, step, 10);
-            reporter.report(&update);
-        }
-        reporter.complete();
-    }
-
-    #[test]
-    fn reporter_quiet_complete() {
-        let reporter = CLIProgressReporter::new(true);
-        reporter.complete();
-        // Should not panic or print anything
-    }
-
-    // --- CLIResultPresenter additional tests ---
 
     #[test]
     fn presenter_verbose_mode() {
@@ -261,7 +170,7 @@ mod tests {
             },
             CalculationResult {
                 algorithm: "FFT".into(),
-                outcome: Err("computation failed".into()),
+                outcome: Err(FibError::Calculation("computation failed".into())),
                 duration: Duration::from_millis(0),
             },
         ];

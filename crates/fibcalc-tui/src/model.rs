@@ -21,6 +21,10 @@ use crate::messages::TuiMessage;
 use crate::metrics::render_metrics;
 use crate::sparkline::render_sparkline;
 
+/// `log2(phi)` where `phi = (1 + sqrt(5)) / 2` is the golden ratio.
+/// Used to estimate the bit-length of F(n): approximately `n * LOG2_PHI`.
+const LOG2_PHI: f64 = 0.694_241_914_0;
+
 /// TUI application state (Elm Model).
 #[allow(clippy::struct_excessive_bools)]
 pub struct TuiApp {
@@ -31,7 +35,7 @@ pub struct TuiApp {
     /// Current calculation progress per algorithm.
     pub progress: Vec<f64>,
     /// Algorithm names.
-    pub algorithms: Vec<String>,
+    pub algorithms: Vec<&'static str>,
     /// Completed algorithms with their durations.
     pub completed: Vec<(String, Duration)>,
     /// Log messages.
@@ -136,7 +140,7 @@ impl TuiApp {
                 // Ensure vectors are large enough
                 while self.progress.len() <= index {
                     self.progress.push(0.0);
-                    self.algorithms.push(String::new());
+                    self.algorithms.push("");
                 }
                 self.progress[index] = progress;
                 self.algorithms[index] = algorithm;
@@ -214,7 +218,7 @@ impl TuiApp {
                         let delta_secs = now.duration_since(last_time).as_secs_f64();
                         if delta_secs > 0.0 && delta_progress > 0.0 {
                             // F(n) has approximately n * log2(phi) bits
-                            let estimated_total_bits = self.n_value as f64 * 0.694;
+                            let estimated_total_bits = self.n_value as f64 * LOG2_PHI;
                             let num_algos = self.progress.len().max(1) as f64;
                             delta_progress / num_algos * estimated_total_bits / delta_secs
                         } else {
@@ -411,40 +415,34 @@ impl TuiApp {
         // Info panel (40% bottom)
         if self.show_logs {
             let (metrics_col, logs_col) = Self::compute_info_layout(info_area);
-
-            // Left column: metrics + sparkline
-            let (metrics_rect, sparkline_rect) = Self::compute_metrics_layout(metrics_col);
-
-            let elapsed_secs = self.elapsed().map_or(0.0, |d| d.as_secs_f64());
-            render_metrics(
-                frame,
-                metrics_rect,
-                elapsed_secs,
-                self.memory_mb,
-                self.cpu_percent,
-                self.throughput_bits_per_sec,
-            );
-            render_sparkline(frame, sparkline_rect, sparkline_slice, "Throughput");
-
-            // Right column: logs
+            self.render_metrics_and_sparkline(frame, metrics_col, sparkline_slice);
             render_logs(frame, logs_col, logs_slice, self.log_scroll_offset);
         } else {
-            // No logs, show full metrics + sparkline
-            let (metrics_rect, sparkline_rect) = Self::compute_metrics_layout(info_area);
-            let elapsed_secs = self.elapsed().map_or(0.0, |d| d.as_secs_f64());
-            render_metrics(
-                frame,
-                metrics_rect,
-                elapsed_secs,
-                self.memory_mb,
-                self.cpu_percent,
-                self.throughput_bits_per_sec,
-            );
-            render_sparkline(frame, sparkline_rect, sparkline_slice, "Throughput");
+            self.render_metrics_and_sparkline(frame, info_area, sparkline_slice);
         }
 
         // Footer
         render_footer(frame, footer_area);
+    }
+
+    /// Render the metrics panel and sparkline into the given area.
+    fn render_metrics_and_sparkline(
+        &self,
+        frame: &mut ratatui::Frame,
+        area: Rect,
+        sparkline_slice: &[f64],
+    ) {
+        let (metrics_rect, sparkline_rect) = Self::compute_metrics_layout(area);
+        let elapsed_secs = self.elapsed().map_or(0.0, |d| d.as_secs_f64());
+        render_metrics(
+            frame,
+            metrics_rect,
+            elapsed_secs,
+            self.memory_mb,
+            self.cpu_percent,
+            self.throughput_bits_per_sec,
+        );
+        render_sparkline(frame, sparkline_rect, sparkline_slice, "Throughput");
     }
 
     /// Set up the terminal for TUI mode.
@@ -559,7 +557,7 @@ mod tests {
         tx.send(TuiMessage::Progress {
             index: 0,
             progress: 0.5,
-            algorithm: "FastDoubling".to_string(),
+            algorithm: "FastDoubling",
         })
         .unwrap();
         app.update();
@@ -574,7 +572,7 @@ mod tests {
         tx.send(TuiMessage::Progress {
             index: 3,
             progress: 0.8,
-            algorithm: "Matrix".to_string(),
+            algorithm: "Matrix",
         })
         .unwrap();
         app.update();
@@ -600,7 +598,7 @@ mod tests {
         tx.send(TuiMessage::Progress {
             index: 0,
             progress: 0.5,
-            algorithm: "Test".to_string(),
+            algorithm: "Test",
         })
         .unwrap();
         app.update();
@@ -1064,14 +1062,14 @@ mod tests {
         app.handle_message(TuiMessage::Progress {
             index: 0,
             progress: 0.3,
-            algorithm: "FastDoubling".to_string(),
+            algorithm: "FastDoubling",
         });
         assert!((app.progress[0] - 0.3).abs() < f64::EPSILON);
         // Update same index
         app.handle_message(TuiMessage::Progress {
             index: 0,
             progress: 0.9,
-            algorithm: "FastDoubling".to_string(),
+            algorithm: "FastDoubling",
         });
         assert!((app.progress[0] - 0.9).abs() < f64::EPSILON);
         assert_eq!(app.progress.len(), 1);
@@ -1132,12 +1130,12 @@ mod tests {
         app.handle_message(TuiMessage::Progress {
             index: 0,
             progress: 0.5,
-            algorithm: "FastDoubling".to_string(),
+            algorithm: "FastDoubling",
         });
         app.handle_message(TuiMessage::Progress {
             index: 1,
             progress: 0.3,
-            algorithm: "Matrix".to_string(),
+            algorithm: "Matrix",
         });
 
         let backend = TestBackend::new(80, 24);

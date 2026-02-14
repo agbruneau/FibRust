@@ -2,14 +2,12 @@
 //!
 //! Core library for the FibCalc-rs high-performance Fibonacci calculator.
 //! Implements Fast Doubling, Matrix Exponentiation, and FFT-based algorithms.
-#![allow(dead_code)] // Infrastructure modules used incrementally as algorithms are wired up
 #![allow(clippy::similar_names)] // Mathematical variable names: fk, fk1, f2k, f2k1, fk_sq, fk1_sq
 
 pub(crate) mod arena;
 pub mod calculator;
 pub(crate) mod common;
 pub mod constants;
-pub(crate) mod doubling_framework;
 pub mod dynamic_threshold;
 pub mod fastdoubling;
 pub mod fft_based;
@@ -18,7 +16,6 @@ pub(crate) mod generator;
 pub(crate) mod generator_iterative;
 pub mod iterator;
 pub mod matrix;
-pub(crate) mod matrix_framework;
 pub(crate) mod matrix_ops;
 pub(crate) mod matrix_types;
 pub mod memory_budget;
@@ -26,6 +23,7 @@ pub mod modular;
 pub mod observer;
 pub mod observers;
 pub mod options;
+pub(crate) mod pool;
 pub mod progress;
 pub mod registry;
 pub mod strategy;

@@ -1,4 +1,5 @@
 //! Recursive FFT implementation with parallelism.
+#![allow(dead_code)] // Infrastructure: alternative FFT implementation for parallel threshold tuning
 
 use crate::fermat::FermatNum;
 

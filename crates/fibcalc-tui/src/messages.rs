@@ -20,7 +20,7 @@ pub enum TuiMessage {
     Progress {
         index: usize,
         progress: f64,
-        algorithm: String,
+        algorithm: &'static str,
     },
     /// Log message.
     Log(String),
@@ -69,7 +69,7 @@ mod tests {
         let msg = TuiMessage::Progress {
             index: 0,
             progress: 0.5,
-            algorithm: "FastDoubling".to_string(),
+            algorithm: "FastDoubling",
         };
         assert!(matches!(msg, TuiMessage::Progress { .. }));
 

@@ -14,7 +14,7 @@ use crate::options::Options;
 use crate::progress::{CancellationToken, ProgressUpdate};
 
 /// Error type for Fibonacci calculations.
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Clone, thiserror::Error)]
 pub enum FibError {
     /// A calculation error occurred.
     #[error("calculation error: {0}")]

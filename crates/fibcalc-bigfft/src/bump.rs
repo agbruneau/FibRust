@@ -1,4 +1,5 @@
 //! O(1) bump allocator for FFT temporaries.
+#![allow(dead_code)] // Infrastructure: will be wired up for arena-based FFT allocation
 
 use bumpalo::Bump;
 

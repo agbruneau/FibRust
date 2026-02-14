@@ -13,44 +13,44 @@
 
 | Tâche | Description | Statut | Date | Commit |
 |-------|-------------|--------|------|--------|
-| 1.1 | Audit `#![allow(dead_code)]` fibcalc-core | [ ] | | |
-| 1.2 | Audit `#![allow(dead_code)]` fibcalc-bigfft | [ ] | | |
-| 1.3 | Retirer `_strassen_threshold` | [ ] | | |
-| 1.4 | Dead code `errors.rs` / `version.rs` | [ ] | | |
-| 1.5 | Résoudre frameworks vs inline | [ ] | | |
-| 1.6 | Audit `CLIProgressReporter` inutilisé | [ ] | | |
-| 2.1 | Créer `ObjectPool<T>` générique | [ ] | | |
-| 2.2 | Helper thread-local pool | [ ] | | |
-| 2.3 | Migrer `CalculationStatePool` | [ ] | | |
-| 2.4 | Migrer `MatrixStatePool` | [ ] | | |
-| 3.1 | Default impl `DoublingStepExecutor` | [ ] | | |
-| 4.1 | Optimiser `normalize()` sans BigUint | [ ] | | |
-| 4.2 | Optimiser `shift_left()` sans BigUint | [ ] | | |
-| 4.3 | Optimiser `shift_right()` sans BigUint | [ ] | | |
-| 4.4 | Clones hot-path butterfly FFT | [ ] | | |
-| 4.5 | Évaluer `fermat_mul()` (optionnel) | [ ] | | |
-| 4.6 | Renommer `clear_preserving_capacity()` | [ ] | | |
-| 5.1 | Extraire `check_memory_budget` | [ ] | | |
-| 5.2 | Éliminer duplication `execute_cli_logic` | [ ] | | |
-| 5.3 | Extraire setup calculateurs | [ ] | | |
-| 5.4 | Propager `FibError` dans orchestrateur | [ ] | | |
-| 6.1 | String → `&'static str` bridge TUI | [ ] | | |
-| 6.2 | Déduplication render `model.rs` | [ ] | | |
-| 6.3 | Audit `TUIProgressReporter` | [ ] | | |
-| 6.4 | Constante `LOG2_PHI` | [ ] | | |
-| 6.5 | Audit `ColorTheme` / `SparklineBuffer` | [ ] | | |
-| 7.1 | `CancellationToken` AtomicU64 → AtomicBool | [ ] | | |
-| 7.2 | Retirer `MatrixState::temp` | [ ] | | |
-| 7.3 | Déduplication `adjust()` | [ ] | | |
-| 7.4 | `FibIterator::from_index` O(log n) | [ ] | | |
-| 8.1 | FFT bench réel `microbench.rs` | [ ] | | |
-| 8.2 | Médiane `runner.rs` | [ ] | | |
-| 9.1 | Retirer `#[allow(...)]` inutiles | [ ] | | |
-| 9.2 | Tests pool générique | [ ] | | |
-| 9.3 | Benchmark non-régression | [ ] | | |
-| 9.4 | Vérification finale | [ ] | | |
+| 1.1 | Audit `#![allow(dead_code)]` fibcalc-core | [x] | 2026-02-14 | pending |
+| 1.2 | Audit `#![allow(dead_code)]` fibcalc-bigfft | [x] | 2026-02-14 | pending |
+| 1.3 | Retirer `_strassen_threshold` | [x] | 2026-02-14 | pending |
+| 1.4 | Dead code `errors.rs` / `version.rs` | [x] | 2026-02-14 | pending |
+| 1.5 | Résoudre frameworks vs inline | [x] | 2026-02-14 | pending |
+| 1.6 | Audit `CLIProgressReporter` inutilisé | [x] | 2026-02-14 | pending |
+| 2.1 | Créer `ObjectPool<T>` générique | [x] | 2026-02-14 | pending |
+| 2.2 | Helper thread-local pool | [x] | 2026-02-14 | pending |
+| 2.3 | Migrer `CalculationStatePool` | [x] | 2026-02-14 | pending |
+| 2.4 | Migrer `MatrixStatePool` | [x] | 2026-02-14 | pending |
+| 3.1 | Default impl `DoublingStepExecutor` | [x] | 2026-02-14 | pending |
+| 4.1 | Optimiser `normalize()` sans BigUint | [x] | 2026-02-14 | pending |
+| 4.2 | Optimiser `shift_left()` sans BigUint | [x] | 2026-02-14 | pending |
+| 4.3 | Optimiser `shift_right()` sans BigUint | [x] | 2026-02-14 | pending |
+| 4.4 | Clones hot-path butterfly FFT | [x] | 2026-02-14 | pending |
+| 4.5 | Évaluer `fermat_mul()` (optionnel) | [x] | 2026-02-14 | évalué: hot path confirmé, optimisation reportée (complexité élevée) |
+| 4.6 | Renommer `clear_preserving_capacity()` | [x] | 2026-02-14 | pending |
+| 5.1 | Extraire `check_memory_budget` | [x] | 2026-02-14 | pending |
+| 5.2 | Éliminer duplication `execute_cli_logic` | [x] | 2026-02-14 | pending |
+| 5.3 | Extraire setup calculateurs | [x] | 2026-02-14 | pending |
+| 5.4 | Propager `FibError` dans orchestrateur | [x] | 2026-02-14 | pending |
+| 6.1 | String → `&'static str` bridge TUI | [x] | 2026-02-14 | pending |
+| 6.2 | Déduplication render `model.rs` | [x] | 2026-02-14 | pending |
+| 6.3 | Audit `TUIProgressReporter` | [x] | 2026-02-14 | pending |
+| 6.4 | Constante `LOG2_PHI` | [x] | 2026-02-14 | pending |
+| 6.5 | Audit `ColorTheme` / `SparklineBuffer` | [x] | 2026-02-14 | pending |
+| 7.1 | `CancellationToken` AtomicU64 → AtomicBool | [x] | 2026-02-14 | pending |
+| 7.2 | Retirer `MatrixState::temp` | [x] | 2026-02-14 | pending |
+| 7.3 | Déduplication `adjust()` | [x] | 2026-02-14 | pending |
+| 7.4 | `FibIterator::from_index` O(log n) | [x] | 2026-02-14 | pending |
+| 8.1 | FFT bench réel `microbench.rs` | [x] | 2026-02-14 | pending |
+| 8.2 | Médiane `runner.rs` | [x] | 2026-02-14 | pending |
+| 9.1 | Retirer `#[allow(...)]` inutiles | [x] | 2026-02-14 | audité: tous nécessaires |
+| 9.2 | Tests pool générique | [x] | 2026-02-14 | pending |
+| 9.3 | Benchmark non-régression | [x] | 2026-02-14 | pending |
+| 9.4 | Vérification finale | [x] | 2026-02-14 | 668 tests, 0 warnings, fmt ok |
 
-**Progression** : 0 / 36 tâches complétées (0%)
+**Progression** : 36 / 36 tâches complétées (100%)
 
 ---
 

@@ -26,7 +26,14 @@ pub trait DoublingStepExecutor: Multiplier {
     /// compute F(2k) and F(2k+1).
     ///
     /// Returns (F(2k), F(2k+1)).
-    fn execute_doubling_step(&self, fk: &BigUint, fk1: &BigUint) -> (BigUint, BigUint);
+    fn execute_doubling_step(&self, fk: &BigUint, fk1: &BigUint) -> (BigUint, BigUint) {
+        // F(2k) = F(k) * (2*F(k+1) - F(k))  — 1 multiply
+        let t = (fk1 << 1u32) - fk;
+        let f2k = self.multiply(fk, &t);
+        // F(2k+1) = F(k)^2 + F(k+1)^2       — 2 squarings
+        let f2k1 = self.square(fk) + self.square(fk1);
+        (f2k, f2k1)
+    }
 }
 
 /// Karatsuba multiplication strategy (default for small numbers).
@@ -59,17 +66,7 @@ impl Multiplier for KaratsubaStrategy {
     }
 }
 
-impl DoublingStepExecutor for KaratsubaStrategy {
-    fn execute_doubling_step(&self, fk: &BigUint, fk1: &BigUint) -> (BigUint, BigUint) {
-        // F(2k) = F(k) * (2*F(k+1) - F(k))  — 1 multiply
-        let t = (fk1 << 1u32) - fk;
-        let f2k = self.multiply(fk, &t);
-        // F(2k+1) = F(k)^2 + F(k+1)^2       — 2 squarings
-        let f2k1 = self.square(fk) + self.square(fk1);
-
-        (f2k, f2k1)
-    }
-}
+impl DoublingStepExecutor for KaratsubaStrategy {}
 
 /// Parallel Karatsuba strategy that uses `rayon::join` to parallelize
 /// the three independent multiplications in the doubling step when
@@ -152,31 +149,17 @@ impl Multiplier for FFTOnlyStrategy {
     }
 }
 
-impl DoublingStepExecutor for FFTOnlyStrategy {
-    fn execute_doubling_step(&self, fk: &BigUint, fk1: &BigUint) -> (BigUint, BigUint) {
-        // F(2k) = F(k) * (2*F(k+1) - F(k))  — 1 multiply
-        let t = (fk1 << 1u32) - fk;
-        let f2k = self.multiply(fk, &t);
-        // F(2k+1) = F(k)^2 + F(k+1)^2       — 2 squarings
-        let f2k1 = self.square(fk) + self.square(fk1);
-
-        (f2k, f2k1)
-    }
-}
+impl DoublingStepExecutor for FFTOnlyStrategy {}
 
 /// Adaptive strategy that selects multiplication method based on operand size.
 pub struct AdaptiveStrategy {
     fft_threshold: usize,
-    _strassen_threshold: usize,
 }
 
 impl AdaptiveStrategy {
     #[must_use]
-    pub fn new(fft_threshold: usize, strassen_threshold: usize) -> Self {
-        Self {
-            fft_threshold,
-            _strassen_threshold: strassen_threshold,
-        }
+    pub fn new(fft_threshold: usize) -> Self {
+        Self { fft_threshold }
     }
 
     /// Get the bit length of a `BigUint`.
@@ -210,17 +193,7 @@ impl Multiplier for AdaptiveStrategy {
     }
 }
 
-impl DoublingStepExecutor for AdaptiveStrategy {
-    fn execute_doubling_step(&self, fk: &BigUint, fk1: &BigUint) -> (BigUint, BigUint) {
-        // F(2k) = F(k) * (2*F(k+1) - F(k))  — 1 multiply
-        let t = (fk1 << 1u32) - fk;
-        let f2k = self.multiply(fk, &t);
-        // F(2k+1) = F(k)^2 + F(k+1)^2       — 2 squarings
-        let f2k1 = self.square(fk) + self.square(fk1);
-
-        (f2k, f2k1)
-    }
-}
+impl DoublingStepExecutor for AdaptiveStrategy {}
 
 #[cfg(test)]
 mod tests {
@@ -254,7 +227,7 @@ mod tests {
 
     #[test]
     fn adaptive_strategy_name() {
-        let strat = AdaptiveStrategy::new(500_000, 3072);
+        let strat = AdaptiveStrategy::new(500_000);
         assert_eq!(strat.name(), "Adaptive");
     }
 
@@ -417,7 +390,7 @@ mod tests {
 
     #[test]
     fn adaptive_strategy_below_fft_threshold() {
-        let strat = AdaptiveStrategy::new(1_000_000, 3072);
+        let strat = AdaptiveStrategy::new(1_000_000);
         // Small numbers -> should use Karatsuba path
         let a = BigUint::from(12345u64);
         let b = BigUint::from(67890u64);
@@ -426,7 +399,7 @@ mod tests {
 
     #[test]
     fn adaptive_strategy_square_below_threshold() {
-        let strat = AdaptiveStrategy::new(1_000_000, 3072);
+        let strat = AdaptiveStrategy::new(1_000_000);
         let a = BigUint::from(1000u64);
         assert_eq!(strat.square(&a), BigUint::from(1_000_000u64));
     }
@@ -434,7 +407,7 @@ mod tests {
     #[test]
     fn adaptive_strategy_above_fft_threshold() {
         // threshold = 1 bit -> always use FFT
-        let strat = AdaptiveStrategy::new(1, 1);
+        let strat = AdaptiveStrategy::new(1);
         let a = BigUint::from(12345u64);
         let b = BigUint::from(67890u64);
         assert_eq!(strat.multiply(&a, &b), BigUint::from(838_102_050u64));
@@ -442,14 +415,14 @@ mod tests {
 
     #[test]
     fn adaptive_strategy_square_above_threshold() {
-        let strat = AdaptiveStrategy::new(1, 1);
+        let strat = AdaptiveStrategy::new(1);
         let a = BigUint::from(100u64);
         assert_eq!(strat.square(&a), BigUint::from(10_000u64));
     }
 
     #[test]
     fn adaptive_strategy_doubling_step() {
-        let strat = AdaptiveStrategy::new(500_000, 3072);
+        let strat = AdaptiveStrategy::new(500_000);
         let fk = BigUint::from(5u64);
         let fk1 = BigUint::from(8u64);
         let (f2k, f2k1) = strat.execute_doubling_step(&fk, &fk1);
@@ -462,7 +435,7 @@ mod tests {
         let karatsuba = KaratsubaStrategy::new();
         let parallel = ParallelKaratsubaStrategy::new(0);
         let fft = FFTOnlyStrategy::new();
-        let adaptive = AdaptiveStrategy::new(500_000, 3072);
+        let adaptive = AdaptiveStrategy::new(500_000);
 
         let fk = BigUint::from(5u64);
         let fk1 = BigUint::from(8u64);

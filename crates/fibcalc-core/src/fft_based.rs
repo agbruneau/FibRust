@@ -5,7 +5,7 @@
 use num_bigint::BigUint;
 
 use crate::calculator::{CoreCalculator, FibError};
-use crate::constants::{DEFAULT_FFT_THRESHOLD, DEFAULT_STRASSEN_THRESHOLD};
+use crate::constants::DEFAULT_FFT_THRESHOLD;
 use crate::observer::ProgressObserver;
 use crate::options::Options;
 use crate::progress::{CancellationToken, ProgressUpdate};
@@ -46,7 +46,7 @@ impl CoreCalculator for FFTBasedCalculator {
         let mut fk1 = BigUint::from(1u32);
 
         let frozen = observer.freeze();
-        let strategy = AdaptiveStrategy::new(DEFAULT_FFT_THRESHOLD, DEFAULT_STRASSEN_THRESHOLD);
+        let strategy = AdaptiveStrategy::new(DEFAULT_FFT_THRESHOLD);
 
         for i in (0..num_bits).rev() {
             if cancel.is_cancelled() {

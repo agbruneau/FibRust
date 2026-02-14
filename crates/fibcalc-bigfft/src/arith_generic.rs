@@ -1,4 +1,5 @@
 //! Portable arithmetic operations.
+#![allow(dead_code)] // Infrastructure: available for optimized limb-level arithmetic
 
 /// Add with carry: a + b + carry -> (sum, `new_carry`)
 #[inline]

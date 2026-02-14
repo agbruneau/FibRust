@@ -8,6 +8,7 @@ description = "Auto-tuning, adaptive benchmarks, and calibration profiles"
 
 [dependencies]
 fibcalc-core = { workspace = true }
+fibcalc-bigfft = { workspace = true }
 num-bigint = { workspace = true }
 rayon = { workspace = true }
 parking_lot = { workspace = true }

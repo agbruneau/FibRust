@@ -1,9 +1,12 @@
 //! Application entry point and dispatch.
 
+use std::sync::Arc;
+
 use anyhow::Result;
 
 use fibcalc_cli::output::write_to_file;
 use fibcalc_cli::presenter::CLIResultPresenter;
+use fibcalc_core::calculator::Calculator;
 use fibcalc_core::options::Options;
 use fibcalc_core::progress::CancellationToken;
 use fibcalc_core::registry::DefaultFactory;
@@ -68,11 +71,10 @@ fn build_options(config: &AppConfig) -> Result<Options> {
     .normalize())
 }
 
-fn run_cli(config: &AppConfig) -> Result<()> {
-    let opts = build_options(config)?;
-
-    // Memory budget check
-    let estimate = fibcalc_core::memory_budget::MemoryEstimate::estimate(config.n);
+/// Check whether the estimated memory for computing F(n) fits within the
+/// configured budget.  Bails with a human-readable message when it does not.
+fn check_memory_budget(n: u64, opts: &Options) -> Result<()> {
+    let estimate = fibcalc_core::memory_budget::MemoryEstimate::estimate(n);
     if !estimate.fits_in(opts.memory_limit) {
         anyhow::bail!(
             "Estimated memory ({} MB) exceeds limit ({} MB)",
@@ -80,17 +82,33 @@ fn run_cli(config: &AppConfig) -> Result<()> {
             opts.memory_limit.unwrap_or(0) / (1024 * 1024)
         );
     }
+    Ok(())
+}
 
+/// Build options, check memory budget, and create the calculator list.
+fn setup_calculators(config: &AppConfig) -> Result<(Vec<Arc<dyn Calculator>>, Options)> {
+    let opts = build_options(config)?;
+    check_memory_budget(config.n, &opts)?;
     let factory = DefaultFactory::new();
     let calculators = get_calculators_to_run(&config.algo, &factory)?;
+    Ok((calculators, opts))
+}
+
+fn run_cli(config: &AppConfig) -> Result<()> {
     let cancel = CancellationToken::new();
 
     // Set up Ctrl+C handler
     let cancel_clone = cancel.clone();
     ctrlc_handler(cancel_clone);
 
+    run_cli_core(config, &cancel)
+}
+
+/// Core CLI logic shared by `run_cli` (with ctrlc) and tests (without).
+fn run_cli_core(config: &AppConfig, cancel: &CancellationToken) -> Result<()> {
+    let (calculators, opts) = setup_calculators(config)?;
     let timeout = Some(config.timeout_duration());
-    let results = execute_calculations(&calculators, config.n, &opts, &cancel, timeout);
+    let results = execute_calculations(&calculators, config.n, &opts, cancel, timeout);
 
     // Analyze results
     if results.len() > 1 {
@@ -111,7 +129,7 @@ fn run_cli(config: &AppConfig) -> Result<()> {
                 config.details,
             );
         } else if let Err(error) = &result.outcome {
-            presenter.present_error(error);
+            presenter.present_error(&error.to_string());
         }
     }
 
@@ -154,20 +172,7 @@ fn run_calibration(config: &AppConfig) -> Result<()> {
 }
 
 fn run_tui(config: &AppConfig) -> Result<()> {
-    let opts = build_options(config)?;
-
-    // Memory budget check
-    let estimate = fibcalc_core::memory_budget::MemoryEstimate::estimate(config.n);
-    if !estimate.fits_in(opts.memory_limit) {
-        anyhow::bail!(
-            "Estimated memory ({} MB) exceeds limit ({} MB)",
-            estimate.total_bytes / (1024 * 1024),
-            opts.memory_limit.unwrap_or(0) / (1024 * 1024)
-        );
-    }
-
-    let factory = DefaultFactory::new();
-    let calculators = get_calculators_to_run(&config.algo, &factory)?;
+    let (calculators, opts) = setup_calculators(config)?;
     let cancel = CancellationToken::new();
 
     // Set up Ctrl+C handler
@@ -266,11 +271,6 @@ mod tests {
     use super::*;
     use tempfile::TempDir;
 
-    use fibcalc_core::progress::CancellationToken;
-    use fibcalc_core::registry::DefaultFactory;
-    use fibcalc_orchestration::calculator_selection::get_calculators_to_run;
-    use fibcalc_orchestration::orchestrator::{analyze_comparison_results, execute_calculations};
-
     /// Helper to build a minimal AppConfig for testing.
     fn test_config() -> AppConfig {
         AppConfig {
@@ -299,59 +299,10 @@ mod tests {
         build_options(config).expect("test config should always produce valid options")
     }
 
-    /// Execute the core logic of run_cli without the ctrlc handler.
-    /// This mirrors the run_cli function except for ctrlc_handler setup.
+    /// Execute `run_cli_core` with a fresh cancellation token (no ctrlc).
     fn execute_cli_logic(config: &AppConfig) -> Result<()> {
-        let opts = opts_from_config(config);
-
-        // Memory budget check
-        let estimate = fibcalc_core::memory_budget::MemoryEstimate::estimate(config.n);
-        if !estimate.fits_in(opts.memory_limit) {
-            anyhow::bail!(
-                "Estimated memory ({} MB) exceeds limit ({} MB)",
-                estimate.total_bytes / (1024 * 1024),
-                opts.memory_limit.unwrap_or(0) / (1024 * 1024)
-            );
-        }
-
-        let factory = DefaultFactory::new();
-        let calculators = get_calculators_to_run(&config.algo, &factory)?;
         let cancel = CancellationToken::new();
-        let timeout = Some(config.timeout_duration());
-        let results = execute_calculations(&calculators, config.n, &opts, &cancel, timeout);
-
-        if results.len() > 1 {
-            if let Err(e) = analyze_comparison_results(&results) {
-                eprintln!("Warning: {e}");
-            }
-        }
-
-        let presenter = CLIResultPresenter::new(config.verbose, config.quiet);
-        for result in &results {
-            if let Ok(value) = &result.outcome {
-                presenter.present_result(
-                    &result.algorithm,
-                    config.n,
-                    value,
-                    result.duration,
-                    config.details,
-                );
-            } else if let Err(error) = &result.outcome {
-                presenter.present_error(error);
-            }
-        }
-
-        if results.len() > 1 {
-            presenter.present_comparison(&results);
-        }
-
-        if let Some(ref path) = config.output {
-            if let Some(result) = results.iter().find(|r| r.outcome.is_ok()) {
-                write_to_file(path, result.outcome.as_ref().unwrap())?;
-            }
-        }
-
-        Ok(())
+        run_cli_core(config, &cancel)
     }
 
     #[test]

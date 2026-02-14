@@ -59,81 +59,52 @@ impl DynamicThresholdManager {
     }
 
     /// Adjust thresholds based on collected metrics.
-    #[allow(
-        clippy::cast_possible_truncation,
-        clippy::cast_sign_loss,
-        clippy::cast_precision_loss
-    )]
     pub fn adjust(&mut self) {
         if self.metrics.is_empty() {
             return;
         }
 
         let stats = self.compute_stats();
-        let dead_zone = self.config.dead_zone;
+
+        self.adjust_threshold("fft", stats.fft_benefit, 1024);
+        self.adjust_threshold("parallel", stats.parallel_benefit, 512);
+        self.adjust_threshold("strassen", stats.strassen_benefit, 512);
+    }
+
+    #[allow(
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss,
+        clippy::cast_precision_loss
+    )]
+    fn adjust_threshold(&mut self, name: &str, benefit: f64, floor: usize) {
         let hysteresis = self.config.hysteresis_factor;
+        let dead_zone = self.config.dead_zone;
         let max_adj = self.config.max_adjustment;
 
-        // FFT threshold adjustment
-        if stats.fft_benefit > hysteresis && stats.fft_benefit.abs() > dead_zone {
-            let old = self.current_fft;
-            let factor = (1.0 - max_adj).max(0.5);
-            self.current_fft = ((self.current_fft as f64) * factor).round() as usize;
-            self.current_fft = self.current_fft.max(1024);
-            self.record_adjustment("fft", old, self.current_fft, stats.fft_benefit);
-        } else if stats.fft_benefit < -hysteresis && stats.fft_benefit.abs() > dead_zone {
-            let old = self.current_fft;
-            let factor = (1.0 + max_adj).min(2.0);
-            self.current_fft = ((self.current_fft as f64) * factor).round() as usize;
-            self.record_adjustment("fft", old, self.current_fft, stats.fft_benefit);
-        }
+        let current = match name {
+            "fft" => &mut self.current_fft,
+            "parallel" => &mut self.current_parallel,
+            "strassen" => &mut self.current_strassen,
+            _ => return,
+        };
 
-        // Parallel threshold adjustment
-        if stats.parallel_benefit > hysteresis && stats.parallel_benefit.abs() > dead_zone {
-            let old = self.current_parallel;
+        let adjustment = if benefit > hysteresis && benefit.abs() > dead_zone {
+            let old = *current;
             let factor = (1.0 - max_adj).max(0.5);
-            self.current_parallel = ((self.current_parallel as f64) * factor).round() as usize;
-            self.current_parallel = self.current_parallel.max(512);
-            self.record_adjustment(
-                "parallel",
-                old,
-                self.current_parallel,
-                stats.parallel_benefit,
-            );
-        } else if stats.parallel_benefit < -hysteresis && stats.parallel_benefit.abs() > dead_zone {
-            let old = self.current_parallel;
+            *current = ((*current as f64) * factor).round() as usize;
+            *current = (*current).max(floor);
+            Some((old, *current))
+        } else if benefit < -hysteresis && benefit.abs() > dead_zone {
+            let old = *current;
             let factor = (1.0 + max_adj).min(2.0);
-            self.current_parallel = ((self.current_parallel as f64) * factor).round() as usize;
-            self.record_adjustment(
-                "parallel",
-                old,
-                self.current_parallel,
-                stats.parallel_benefit,
-            );
-        }
+            *current = ((*current as f64) * factor).round() as usize;
+            Some((old, *current))
+        } else {
+            None
+        };
 
-        // Strassen threshold adjustment
-        if stats.strassen_benefit > hysteresis && stats.strassen_benefit.abs() > dead_zone {
-            let old = self.current_strassen;
-            let factor = (1.0 - max_adj).max(0.5);
-            self.current_strassen = ((self.current_strassen as f64) * factor).round() as usize;
-            self.current_strassen = self.current_strassen.max(512);
-            self.record_adjustment(
-                "strassen",
-                old,
-                self.current_strassen,
-                stats.strassen_benefit,
-            );
-        } else if stats.strassen_benefit < -hysteresis && stats.strassen_benefit.abs() > dead_zone {
-            let old = self.current_strassen;
-            let factor = (1.0 + max_adj).min(2.0);
-            self.current_strassen = ((self.current_strassen as f64) * factor).round() as usize;
-            self.record_adjustment(
-                "strassen",
-                old,
-                self.current_strassen,
-                stats.strassen_benefit,
-            );
+        if let Some((old, new)) = adjustment {
+            self.record_adjustment(name, old, new, benefit);
         }
     }
 

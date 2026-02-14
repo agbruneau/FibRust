@@ -11,6 +11,7 @@ use crate::constants::DEFAULT_FFT_THRESHOLD;
 /// Multiply using FFT if operands are large enough, otherwise use default.
 #[must_use]
 #[allow(clippy::cast_possible_truncation)]
+#[allow(dead_code)] // TODO: Phase 2 — FFT strategy integration
 pub fn smart_multiply(a: &BigUint, b: &BigUint, fft_threshold: usize) -> BigUint {
     let max_bits = a.bits().max(b.bits()) as usize;
     if max_bits >= fft_threshold {
@@ -23,6 +24,7 @@ pub fn smart_multiply(a: &BigUint, b: &BigUint, fft_threshold: usize) -> BigUint
 /// Square using FFT if operand is large enough.
 #[must_use]
 #[allow(clippy::cast_possible_truncation)]
+#[allow(dead_code)] // TODO: Phase 2 — FFT strategy integration
 pub fn smart_square(a: &BigUint, fft_threshold: usize) -> BigUint {
     let bits = a.bits() as usize;
     if bits >= fft_threshold {
@@ -34,12 +36,14 @@ pub fn smart_square(a: &BigUint, fft_threshold: usize) -> BigUint {
 
 /// FFT multiplication via fibcalc-bigfft.
 #[must_use]
+#[allow(dead_code)] // TODO: Phase 2 — FFT strategy integration
 pub fn mul_fft(a: &BigUint, b: &BigUint) -> BigUint {
     fibcalc_bigfft::mul(a, b)
 }
 
 /// FFT squaring via fibcalc-bigfft.
 #[must_use]
+#[allow(dead_code)] // TODO: Phase 2 — FFT strategy integration
 pub fn sqr_fft(a: &BigUint) -> BigUint {
     fibcalc_bigfft::sqr(a)
 }

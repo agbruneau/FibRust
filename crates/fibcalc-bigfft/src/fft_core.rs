@@ -26,12 +26,16 @@ pub fn fft_forward(data: &mut [FermatNum], shift: usize) {
         for start in (0..n).step_by(size) {
             for j in 0..half {
                 let s = step * j;
-                let mut t = data[start + j + half].clone();
-                t.shift_left(s); // t = data[start+j+half] * ω^j
+                // Split to get simultaneous mutable access to indices [start+j] and [start+j+half]
+                let (lo, hi) = data.split_at_mut(start + j + half);
+                let upper = &lo[start + j];
+                let lower = &mut hi[0];
+                lower.shift_left(s); // lower = data[start+j+half] * ω^j (in-place)
 
-                let u = data[start + j].clone();
-                data[start + j] = u.add(&t); // u + ω^j * t
-                data[start + j + half] = u.sub(&t); // u - ω^j * t
+                let sum = upper.add(lower); // u + ω^j * t
+                let diff = upper.sub(lower); // u - ω^j * t
+                lo[start + j] = sum;
+                hi[0] = diff;
             }
         }
         size *= 2;

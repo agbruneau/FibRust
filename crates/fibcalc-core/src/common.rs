@@ -11,6 +11,7 @@ use crate::calculator::FibError;
 ///
 /// Limits concurrency to `max_concurrency` threads. Collects all results
 /// or returns the first error encountered.
+#[allow(dead_code)] // TODO: Phase 2 — parallel orchestration infrastructure
 pub fn execute_tasks<T, F>(tasks: Vec<F>, max_concurrency: usize) -> Result<Vec<T>, FibError>
 where
     T: Send,
@@ -37,6 +38,7 @@ where
 ///
 /// The `max_concurrency` parameter limits the number of concurrent threads
 /// (semaphore pattern: typically `2 * num_cpus`).
+#[allow(dead_code)] // TODO: Phase 2 — parallel orchestration infrastructure
 pub fn execute_tasks_first_error<T, F>(
     tasks: Vec<F>,
     max_concurrency: usize,
@@ -103,6 +105,7 @@ where
 ///
 /// Useful when you want to report all failures instead of just the first one.
 #[must_use]
+#[allow(dead_code)] // TODO: Phase 2 — parallel orchestration infrastructure
 pub fn collect_errors<T>(results: Vec<Result<T, FibError>>) -> (Vec<T>, Vec<FibError>) {
     let mut successes = Vec::new();
     let mut errors = Vec::new();
@@ -119,6 +122,7 @@ pub fn collect_errors<T>(results: Vec<Result<T, FibError>>) -> (Vec<T>, Vec<FibE
 
 /// Get the default parallelism level (2 * `num_cpus`).
 #[must_use]
+#[allow(dead_code)] // TODO: Phase 2 — parallel orchestration infrastructure
 pub fn default_parallelism() -> usize {
     let cpus = std::thread::available_parallelism()
         .map(std::num::NonZero::get)
@@ -128,6 +132,7 @@ pub fn default_parallelism() -> usize {
 
 /// Get the semaphore-limited concurrency (capped at 2 * `num_cpus`).
 #[must_use]
+#[allow(dead_code)] // TODO: Phase 2 — parallel orchestration infrastructure
 pub fn semaphore_concurrency(requested: Option<usize>) -> usize {
     let max = default_parallelism();
     match requested {

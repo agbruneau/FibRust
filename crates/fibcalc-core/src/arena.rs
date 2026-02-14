@@ -5,10 +5,12 @@
 use bumpalo::Bump;
 
 /// Arena allocator for Fibonacci calculation temporaries.
+#[allow(dead_code)] // TODO: Phase 2 — PRD T4.1 arena allocator integration
 pub struct CalculationArena {
     bump: Bump,
 }
 
+#[allow(dead_code)] // TODO: Phase 2 — PRD T4.1 arena allocator integration
 impl CalculationArena {
     /// Create a new arena with default capacity.
     #[must_use]

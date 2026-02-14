@@ -26,6 +26,7 @@ pub fn matrix_square(m: &Matrix) -> Matrix {
 /// we can reduce the number of multiplications.
 #[must_use]
 #[allow(clippy::cast_possible_truncation)]
+#[allow(dead_code)] // TODO: Phase 2 — PRD T2.4 Strassen optimization
 pub fn matrix_multiply_strassen(a: &Matrix, b: &Matrix, threshold: usize) -> Matrix {
     let max_bits = a.a.bits().max(b.a.bits()) as usize;
 

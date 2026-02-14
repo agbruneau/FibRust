@@ -566,6 +566,7 @@ dependencies = [
 name = "fibcalc-calibration"
 version = "0.1.0"
 dependencies = [
+ "fibcalc-bigfft",
  "fibcalc-core",
  "num-bigint",
  "parking_lot",

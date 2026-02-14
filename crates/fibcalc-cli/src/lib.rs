@@ -8,4 +8,4 @@ pub mod presenter;
 pub mod progress_eta;
 pub mod ui;
 
-pub use presenter::{CLIProgressReporter, CLIResultPresenter};
+pub use presenter::CLIResultPresenter;

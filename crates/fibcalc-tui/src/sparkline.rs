@@ -1,4 +1,4 @@
-//! Sparkline visualization with ring buffer and Braille rendering.
+//! Sparkline visualization with Braille rendering.
 
 use ratatui::layout::Rect;
 use ratatui::style::{Color, Style};
@@ -15,62 +15,6 @@ const BRAILLE_BASE: u32 = 0x2800;
 /// Right column bits: row0=0x08, row1=0x10, row2=0x20, row3=0x80
 const BRAILLE_LEFT: [u32; 4] = [0x40, 0x04, 0x02, 0x01];
 const BRAILLE_RIGHT: [u32; 4] = [0x80, 0x20, 0x10, 0x08];
-
-/// Ring buffer for sparkline data.
-pub struct SparklineBuffer {
-    data: Vec<u64>,
-    capacity: usize,
-}
-
-impl SparklineBuffer {
-    /// Create a new sparkline buffer.
-    #[must_use]
-    pub fn new(capacity: usize) -> Self {
-        Self {
-            data: Vec::with_capacity(capacity),
-            capacity,
-        }
-    }
-
-    /// Push a new value.
-    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-    pub fn push(&mut self, value: f64) {
-        let scaled = (value * 100.0) as u64;
-        if self.data.len() >= self.capacity {
-            self.data.remove(0);
-        }
-        self.data.push(scaled);
-    }
-
-    /// Get the data as a slice.
-    #[must_use]
-    pub fn data(&self) -> &[u64] {
-        &self.data
-    }
-
-    /// Get the capacity.
-    #[must_use]
-    pub fn capacity(&self) -> usize {
-        self.capacity
-    }
-
-    /// Get the number of stored values.
-    #[must_use]
-    pub fn len(&self) -> usize {
-        self.data.len()
-    }
-
-    /// Check if the buffer is empty.
-    #[must_use]
-    pub fn is_empty(&self) -> bool {
-        self.data.is_empty()
-    }
-
-    /// Clear all data.
-    pub fn clear(&mut self) {
-        self.data.clear();
-    }
-}
 
 /// Render a sparkline widget using ratatui's built-in sparkline.
 #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
@@ -195,44 +139,6 @@ fn braille_lines(data: &[f64], char_width: usize, char_height: usize) -> Vec<Lin
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn sparkline_buffer() {
-        let mut buf = SparklineBuffer::new(5);
-        for i in 0..10 {
-            buf.push(i as f64);
-        }
-        assert_eq!(buf.data().len(), 5);
-        assert_eq!(buf.capacity(), 5);
-        assert_eq!(buf.len(), 5);
-        assert!(!buf.is_empty());
-    }
-
-    #[test]
-    fn sparkline_buffer_empty() {
-        let buf = SparklineBuffer::new(5);
-        assert!(buf.is_empty());
-        assert_eq!(buf.len(), 0);
-    }
-
-    #[test]
-    fn sparkline_buffer_clear() {
-        let mut buf = SparklineBuffer::new(5);
-        buf.push(1.0);
-        buf.push(2.0);
-        assert_eq!(buf.len(), 2);
-        buf.clear();
-        assert!(buf.is_empty());
-    }
-
-    #[test]
-    fn sparkline_buffer_scaling() {
-        let mut buf = SparklineBuffer::new(5);
-        buf.push(0.5);
-        assert_eq!(buf.data()[0], 50);
-        buf.push(1.0);
-        assert_eq!(buf.data()[1], 100);
-    }
 
     #[test]
     fn braille_lines_empty_data() {
@@ -407,29 +313,5 @@ mod tests {
                 render_braille_sparkline(frame, area, &data, "Large");
             })
             .unwrap();
-    }
-
-    #[test]
-    fn sparkline_buffer_push_at_capacity() {
-        let mut buf = SparklineBuffer::new(3);
-        buf.push(1.0);
-        buf.push(2.0);
-        buf.push(3.0);
-        assert_eq!(buf.len(), 3);
-        buf.push(4.0); // should evict first
-        assert_eq!(buf.len(), 3);
-        assert_eq!(buf.data()[0], 200); // 2.0 * 100
-        assert_eq!(buf.data()[2], 400); // 4.0 * 100
-    }
-
-    #[test]
-    fn sparkline_buffer_capacity_one() {
-        let mut buf = SparklineBuffer::new(1);
-        buf.push(1.0);
-        assert_eq!(buf.len(), 1);
-        assert_eq!(buf.data()[0], 100);
-        buf.push(2.0);
-        assert_eq!(buf.len(), 1);
-        assert_eq!(buf.data()[0], 200);
     }
 }

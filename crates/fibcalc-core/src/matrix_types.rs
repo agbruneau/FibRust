@@ -88,7 +88,6 @@ impl Matrix {
 pub struct MatrixState {
     pub result: Matrix,
     pub base: Matrix,
-    pub temp: Matrix,
 }
 
 impl MatrixState {
@@ -98,7 +97,6 @@ impl MatrixState {
         Self {
             result: Matrix::identity(),
             base: Matrix::fibonacci_q(),
-            temp: Matrix::identity(),
         }
     }
 

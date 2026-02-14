@@ -1,4 +1,5 @@
 //! Pool warming: pre-allocate `BigInt` pools based on computation size.
+#![allow(dead_code)] // Infrastructure: will be wired up for pool pre-warming
 //!
 //! Predicts the number and sizes of `BigUint` values needed for a Fibonacci
 //! computation of a given N, and pre-populates the pool to avoid cold-start

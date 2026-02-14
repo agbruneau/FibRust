@@ -17,14 +17,12 @@ pub fn bench_karatsuba(bit_length: usize) -> Duration {
 }
 
 /// Benchmark FFT multiplication at a given bit length.
-/// Currently uses the same underlying num-bigint multiply;
-/// will route to actual FFT once `fibcalc-bigfft` is integrated.
 #[must_use]
 pub fn bench_fft(bit_length: usize) -> Duration {
     let a = make_number(bit_length);
     let b = make_number(bit_length);
     benchmark(10, || {
-        let _ = &a * &b;
+        let _ = fibcalc_bigfft::mul(&a, &b);
     })
 }
 
@@ -97,7 +95,7 @@ fn bench_fft_detailed(bit_length: usize) -> BenchmarkResult {
     let a = make_number(bit_length);
     let b = make_number(bit_length);
     benchmark_detailed(3, 10, || {
-        let _ = &a * &b;
+        let _ = fibcalc_bigfft::mul(&a, &b);
     })
     .with_name(format!("fft_{bit_length}"))
 }

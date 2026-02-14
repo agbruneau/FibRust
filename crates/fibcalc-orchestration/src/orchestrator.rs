@@ -44,7 +44,7 @@ pub fn execute_calculations_with_observer(
 
         return vec![CalculationResult {
             algorithm: calc.name().to_string(),
-            outcome: result.map_err(|e| e.to_string()),
+            outcome: result,
             duration,
         }];
     }
@@ -63,7 +63,7 @@ pub fn execute_calculations_with_observer(
                 if start_time.elapsed() > timeout {
                     return CalculationResult {
                         algorithm: calc.name().to_string(),
-                        outcome: Err("timeout".to_string()),
+                        outcome: Err(FibError::Timeout("exceeded deadline".into())),
                         duration: start.elapsed(),
                     };
                 }
@@ -74,7 +74,7 @@ pub fn execute_calculations_with_observer(
 
             CalculationResult {
                 algorithm: calc.name().to_string(),
-                outcome: result.map_err(|e| e.to_string()),
+                outcome: result,
                 duration,
             }
         })
@@ -180,7 +180,7 @@ mod tests {
     fn analyze_no_valid_results() {
         let results = vec![CalculationResult {
             algorithm: "A".into(),
-            outcome: Err("failed".into()),
+            outcome: Err(FibError::Calculation("failed".into())),
             duration: Duration::from_millis(1),
         }];
         assert!(matches!(
@@ -210,7 +210,7 @@ mod tests {
             },
             CalculationResult {
                 algorithm: "B".into(),
-                outcome: Err("timeout".into()),
+                outcome: Err(FibError::Timeout("timeout".into())),
                 duration: Duration::from_millis(2),
             },
         ];
@@ -390,7 +390,7 @@ mod tests {
             },
             CalculationResult {
                 algorithm: "B".into(),
-                outcome: Err("failed".into()),
+                outcome: Err(FibError::Calculation("failed".into())),
                 duration: Duration::from_millis(2),
             },
             CalculationResult {

@@ -7,64 +7,14 @@
 use std::cell::RefCell;
 
 use num_bigint::BigUint;
-use parking_lot::Mutex;
 
 use crate::calculator::{CoreCalculator, FibError};
 use crate::matrix_ops::{matrix_multiply, matrix_square};
 use crate::matrix_types::MatrixState;
 use crate::observer::ProgressObserver;
 use crate::options::Options;
+use crate::pool;
 use crate::progress::{CancellationToken, ProgressUpdate};
-
-/// Thread-safe pool of `MatrixState` objects.
-pub struct MatrixStatePool {
-    pool: Mutex<Vec<MatrixState>>,
-    max_size: usize,
-}
-
-impl MatrixStatePool {
-    /// Create a new pool with the given maximum size.
-    #[must_use]
-    pub fn new(max_size: usize) -> Self {
-        Self {
-            pool: Mutex::new(Vec::with_capacity(max_size)),
-            max_size,
-        }
-    }
-
-    /// Acquire a `MatrixState` from the pool, or create a new one.
-    /// The returned state is always reset and ready for use.
-    pub fn acquire(&self) -> MatrixState {
-        let mut pool = self.pool.lock();
-        match pool.pop() {
-            Some(mut state) => {
-                state.reset();
-                state
-            }
-            None => MatrixState::new(),
-        }
-    }
-
-    /// Return a `MatrixState` to the pool for reuse.
-    pub fn release(&self, state: MatrixState) {
-        let mut pool = self.pool.lock();
-        if pool.len() < self.max_size {
-            pool.push(state);
-        }
-    }
-
-    /// Get the number of states currently in the pool.
-    #[must_use]
-    pub fn available(&self) -> usize {
-        self.pool.lock().len()
-    }
-}
-
-impl Default for MatrixStatePool {
-    fn default() -> Self {
-        Self::new(4)
-    }
-}
 
 thread_local! {
     static MATRIX_STATE_POOL: RefCell<Vec<MatrixState>> = const { RefCell::new(Vec::new()) };
@@ -74,26 +24,19 @@ const THREAD_LOCAL_POOL_MAX: usize = 4;
 
 /// Acquire a `MatrixState` from the thread-local pool.
 fn tl_acquire_state() -> MatrixState {
-    MATRIX_STATE_POOL.with(|pool| {
-        let mut pool = pool.borrow_mut();
-        match pool.pop() {
-            Some(mut state) => {
-                state.reset();
-                state
-            }
-            None => MatrixState::new(),
-        }
+    MATRIX_STATE_POOL.with(|p| {
+        pool::tl_acquire(
+            p,
+            THREAD_LOCAL_POOL_MAX,
+            MatrixState::new,
+            MatrixState::reset,
+        )
     })
 }
 
 /// Return a `MatrixState` to the thread-local pool.
 fn tl_release_state(state: MatrixState) {
-    MATRIX_STATE_POOL.with(|pool| {
-        let mut pool = pool.borrow_mut();
-        if pool.len() < THREAD_LOCAL_POOL_MAX {
-            pool.push(state);
-        }
-    });
+    MATRIX_STATE_POOL.with(|p| pool::tl_release(p, THREAD_LOCAL_POOL_MAX, state));
 }
 
 /// Matrix Exponentiation calculator.
@@ -239,24 +182,24 @@ mod tests {
 
     #[test]
     fn matrix_state_pool_acquire_release() {
-        let pool = MatrixStatePool::new(2);
+        let pool = pool::ObjectPool::<MatrixState>::new(2);
         assert_eq!(pool.available(), 0);
 
-        let state = pool.acquire();
+        let state = pool.acquire(MatrixState::new, MatrixState::reset);
         assert!(state.result.is_identity());
 
         pool.release(state);
         assert_eq!(pool.available(), 1);
 
         // Acquire returns the pooled state (reset)
-        let state2 = pool.acquire();
+        let state2 = pool.acquire(MatrixState::new, MatrixState::reset);
         assert!(state2.result.is_identity());
         assert_eq!(pool.available(), 0);
     }
 
     #[test]
     fn matrix_state_pool_max_size() {
-        let pool = MatrixStatePool::new(1);
+        let pool = pool::ObjectPool::<MatrixState>::new(1);
         let s1 = MatrixState::new();
         let s2 = MatrixState::new();
         pool.release(s1);

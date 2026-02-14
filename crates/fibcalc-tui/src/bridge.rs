@@ -8,35 +8,9 @@ use num_bigint::BigUint;
 use fibcalc_core::constants::PROGRESS_REPORT_THRESHOLD;
 use fibcalc_core::observer::{FrozenObserver, ProgressObserver};
 use fibcalc_core::progress::ProgressUpdate;
-use fibcalc_orchestration::interfaces::{CalculationResult, ProgressReporter, ResultPresenter};
+use fibcalc_orchestration::interfaces::{CalculationResult, ResultPresenter};
 
 use crate::messages::TuiMessage;
-
-/// TUI progress reporter that sends messages to the TUI.
-pub struct TUIProgressReporter {
-    tx: Sender<TuiMessage>,
-}
-
-impl TUIProgressReporter {
-    #[must_use]
-    pub fn new(tx: Sender<TuiMessage>) -> Self {
-        Self { tx }
-    }
-}
-
-impl ProgressReporter for TUIProgressReporter {
-    fn report(&self, update: &ProgressUpdate) {
-        let _ = self.tx.try_send(TuiMessage::Progress {
-            index: update.calc_index,
-            progress: update.progress,
-            algorithm: update.algorithm.to_string(),
-        });
-    }
-
-    fn complete(&self) {
-        // TUI handles completion via the Complete message
-    }
-}
 
 /// Core-level progress observer that forwards updates to the TUI channel.
 ///
@@ -66,7 +40,7 @@ impl ProgressObserver for TuiBridgeObserver {
         let _ = self.tx.try_send(TuiMessage::Progress {
             index: update.calc_index,
             progress: update.progress,
-            algorithm: update.algorithm.to_string(),
+            algorithm: update.algorithm,
         });
 
         // Send log messages at milestones
@@ -147,6 +121,7 @@ impl ResultPresenter for TUIResultPresenter {
 mod tests {
     use super::*;
     use crossbeam_channel::unbounded;
+    use fibcalc_core::calculator::FibError;
     use fibcalc_core::progress::ProgressUpdate;
 
     fn make_progress_update(index: usize, progress: f64, algo: &'static str) -> ProgressUpdate {
@@ -158,75 +133,6 @@ mod tests {
             total_steps: 100,
             done: false,
         }
-    }
-
-    // --- TUIProgressReporter tests ---
-
-    #[test]
-    fn progress_reporter_new() {
-        let (tx, _rx) = unbounded();
-        let reporter = TUIProgressReporter::new(tx);
-        // Simply verify construction does not panic
-        drop(reporter);
-    }
-
-    #[test]
-    fn progress_reporter_report_sends_progress_message() {
-        let (tx, rx) = unbounded();
-        let reporter = TUIProgressReporter::new(tx);
-
-        let update = make_progress_update(0, 0.75, "FastDoubling");
-        reporter.report(&update);
-
-        let msg = rx.try_recv().expect("should receive a message");
-        match msg {
-            TuiMessage::Progress {
-                index,
-                progress,
-                algorithm,
-            } => {
-                assert_eq!(index, 0);
-                assert!((progress - 0.75).abs() < f64::EPSILON);
-                assert_eq!(algorithm, "FastDoubling");
-            }
-            other => panic!("expected Progress message, got {other:?}"),
-        }
-    }
-
-    #[test]
-    fn progress_reporter_report_multiple() {
-        let (tx, rx) = unbounded();
-        let reporter = TUIProgressReporter::new(tx);
-
-        for i in 0..5 {
-            let update = make_progress_update(i, i as f64 * 0.2, "Matrix");
-            reporter.report(&update);
-        }
-
-        let mut count = 0;
-        while rx.try_recv().is_ok() {
-            count += 1;
-        }
-        assert_eq!(count, 5);
-    }
-
-    #[test]
-    fn progress_reporter_complete_does_not_panic() {
-        let (tx, rx) = unbounded();
-        let reporter = TUIProgressReporter::new(tx);
-        reporter.complete();
-        // complete() is a no-op for TUI, should send nothing
-        assert!(rx.try_recv().is_err());
-    }
-
-    #[test]
-    fn progress_reporter_report_with_dropped_receiver() {
-        let (tx, rx) = unbounded();
-        let reporter = TUIProgressReporter::new(tx);
-        drop(rx);
-        // Should not panic even with dropped receiver
-        let update = make_progress_update(0, 0.5, "Test");
-        reporter.report(&update);
     }
 
     // --- TuiBridgeObserver tests ---
@@ -368,7 +274,7 @@ mod tests {
 
         let results = vec![CalculationResult {
             algorithm: "FFT".to_string(),
-            outcome: Err("overflow".to_string()),
+            outcome: Err(FibError::Calculation("overflow".into())),
             duration: Duration::from_millis(50),
         }];
 

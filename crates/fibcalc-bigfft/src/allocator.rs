@@ -1,4 +1,5 @@
 //! Allocator trait and implementations.
+#![allow(dead_code)] // Infrastructure: will be wired up when pool-backed FFT paths are enabled
 
 use num_bigint::BigUint;
 

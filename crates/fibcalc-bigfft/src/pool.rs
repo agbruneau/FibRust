@@ -50,10 +50,10 @@ impl AtomicPoolStats {
 
 /// Clear a `BigUint` by setting it to zero.
 ///
-/// `BigUint::from(0u32)` is the simplest approach -- the original "preserve capacity"
-/// implementation didn't actually work since num-bigint doesn't expose its internal Vec.
-/// Just zero it out; the allocation cost is negligible compared to computation.
-fn clear_preserving_capacity(value: &mut BigUint) {
+/// `BigUint::from(0u32)` is the simplest approach -- num-bigint doesn't expose its
+/// internal Vec, so we can't preserve capacity. The allocation cost is negligible
+/// compared to computation.
+fn clear_value(value: &mut BigUint) {
     *value = BigUint::ZERO;
 }
 
@@ -104,8 +104,8 @@ impl BigIntPool {
         let mut pools = self.pools.lock();
         let pool = pools.entry(class).or_default();
         if pool.len() < self.max_per_class {
-            // Clear the value, preserving the size class for future reuse
-            clear_preserving_capacity(&mut value);
+            // Clear the value before returning it to the pool
+            clear_value(&mut value);
             pool.push(value);
         } else {
             self.stats.evictions.fetch_add(1, Ordering::Relaxed);

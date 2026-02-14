@@ -14,9 +14,8 @@ pub mod model;
 pub mod sparkline;
 pub mod styles;
 
-pub use bridge::{TUIProgressReporter, TUIResultPresenter, TuiBridgeObserver};
+pub use bridge::{TUIResultPresenter, TuiBridgeObserver};
 pub use logs::LogScrollState;
 pub use messages::{SystemMetrics, TuiMessage};
 pub use metrics::MetricsCollector;
 pub use model::TuiApp;
-pub use sparkline::SparklineBuffer;

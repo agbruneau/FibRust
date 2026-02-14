@@ -1,4 +1,5 @@
 //! Thread-safe LRU cache for FFT transforms.
+#![allow(dead_code)] // Infrastructure: will be wired up for FFT transform caching
 
 use std::collections::HashMap;
 

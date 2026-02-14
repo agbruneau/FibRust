@@ -38,7 +38,12 @@ where
     durations.sort();
     let min = durations.first().copied().unwrap_or_default();
     let max = durations.last().copied().unwrap_or_default();
-    let median = durations[durations.len() / 2];
+    let median = if durations.len() % 2 == 1 {
+        durations[durations.len() / 2]
+    } else {
+        let mid = durations.len() / 2;
+        (durations[mid - 1] + durations[mid]) / 2
+    };
     let total: Duration = durations.iter().sum();
     let mean = total / measure_iters;
 

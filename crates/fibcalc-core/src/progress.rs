@@ -1,6 +1,6 @@
 //! Progress tracking types and utilities.
 
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -102,7 +102,7 @@ const POWERS_OF_4: [f64; 64] = {
 /// ```
 #[derive(Clone)]
 pub struct CancellationToken {
-    cancelled: Arc<AtomicU64>,
+    cancelled: Arc<AtomicBool>,
 }
 
 impl CancellationToken {
@@ -110,19 +110,19 @@ impl CancellationToken {
     #[must_use]
     pub fn new() -> Self {
         Self {
-            cancelled: Arc::new(AtomicU64::new(0)),
+            cancelled: Arc::new(AtomicBool::new(false)),
         }
     }
 
     /// Check if cancellation has been requested.
     #[must_use]
     pub fn is_cancelled(&self) -> bool {
-        self.cancelled.load(Ordering::Relaxed) != 0
+        self.cancelled.load(Ordering::Relaxed)
     }
 
     /// Request cancellation.
     pub fn cancel(&self) {
-        self.cancelled.store(1, Ordering::Relaxed);
+        self.cancelled.store(true, Ordering::Relaxed);
     }
 
     /// Check for cancellation, returning an error if cancelled.

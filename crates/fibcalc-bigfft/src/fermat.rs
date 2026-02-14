@@ -21,6 +21,7 @@ pub struct FermatNum {
 impl FermatNum {
     /// Create a new zero Fermat number with the given shift.
     #[must_use]
+    #[allow(dead_code)] // Public API for future callers
     pub fn new(shift: usize) -> Self {
         let num_limbs = shift.div_ceil(64) + 1;
         Self {
@@ -57,11 +58,127 @@ impl FermatNum {
         (BigUint::one() << self.shift) + BigUint::one()
     }
 
-    /// Normalize: reduce mod (2^shift + 1) via `BigUint` fallback.
+    /// Normalize: reduce mod (2^shift + 1) directly on limbs.
+    ///
+    /// Since `2^shift ≡ -1 (mod 2^shift + 1)`, bits above position `shift`
+    /// can be folded down by subtracting them from the low `shift` bits.
+    /// This avoids any `BigUint` conversion.
     pub fn normalize(&mut self) {
-        let modulus = self.modulus();
-        let val = self.to_biguint() % &modulus;
-        *self = Self::from_biguint(&val, self.shift);
+        let shift = self.shift;
+        let limb_idx = shift / 64;
+        let bit_idx = shift % 64;
+        let num_limbs = self.data.len();
+
+        // Fold: while value has bits strictly above position `shift`,
+        // extract high = value >> shift, low = value & (2^shift - 1),
+        // then compute value = low - high (mod 2^shift + 1).
+        //
+        // After the loop, value < 2^(shift+1), so a single ge_modulus
+        // check (and subtract) suffices.
+        loop {
+            // Check for bits strictly above position `shift`.
+            let has_bits_above_shift = if bit_idx == 0 {
+                // Bit `shift` is data[limb_idx] bit 0.
+                // "Strictly above" means data[limb_idx] > 1 or higher limbs nonzero.
+                (limb_idx < num_limbs && self.data[limb_idx] > 1)
+                    || self
+                        .data
+                        .get(limb_idx + 1..)
+                        .map_or(false, |s| s.iter().any(|&x| x != 0))
+            } else {
+                // Bit `shift` is data[limb_idx] bit bit_idx.
+                // "Strictly above" means bits above bit_idx+1 in limb_idx, or higher limbs.
+                let above_mask = !((1u64 << (bit_idx + 1)) - 1);
+                (limb_idx < num_limbs && (self.data[limb_idx] & above_mask) != 0)
+                    || self
+                        .data
+                        .get(limb_idx + 1..)
+                        .map_or(false, |s| s.iter().any(|&x| x != 0))
+            };
+
+            if !has_bits_above_shift {
+                break;
+            }
+
+            // Extract high = value >> shift
+            let mut high = Vec::with_capacity(num_limbs - limb_idx);
+            if bit_idx == 0 {
+                for i in limb_idx..num_limbs {
+                    high.push(self.data[i]);
+                }
+            } else {
+                for i in limb_idx..num_limbs {
+                    let lo = self.data[i] >> bit_idx;
+                    let hi = if i + 1 < num_limbs {
+                        self.data[i + 1] << (64 - bit_idx)
+                    } else {
+                        0
+                    };
+                    high.push(lo | hi);
+                }
+            }
+
+            // Zero out bits >= shift (keep only the low `shift` bits)
+            if bit_idx == 0 {
+                for i in limb_idx..num_limbs {
+                    self.data[i] = 0;
+                }
+            } else {
+                self.data[limb_idx] &= (1u64 << bit_idx) - 1;
+                for i in (limb_idx + 1)..num_limbs {
+                    self.data[i] = 0;
+                }
+            }
+
+            // low -= high (since 2^shift ≡ -1)
+            let mut borrow = 0u64;
+            for i in 0..high.len().min(num_limbs) {
+                let (diff1, b1) = self.data[i].overflowing_sub(high[i]);
+                let (diff2, b2) = diff1.overflowing_sub(borrow);
+                self.data[i] = diff2;
+                borrow = u64::from(b1) + u64::from(b2);
+            }
+            let mut i = high.len();
+            while borrow > 0 && i < num_limbs {
+                let (diff, b) = self.data[i].overflowing_sub(borrow);
+                self.data[i] = diff;
+                borrow = u64::from(b);
+                i += 1;
+            }
+
+            if borrow > 0 {
+                self.add_modulus();
+            }
+        }
+
+        // After the loop, value <= 2^shift + (2^shift - 1) at most.
+        // One final ge_modulus check handles the case where value == modulus.
+        if self.ge_modulus() {
+            // Subtract modulus (2^shift + 1) once.
+            // Since value >= modulus and value < 2 * modulus at this point,
+            // a single subtraction gives the correct result.
+            let mut borrow = 1u64; // subtract 1
+            for limb in &mut self.data {
+                let (diff, b) = limb.overflowing_sub(borrow);
+                *limb = diff;
+                borrow = u64::from(b);
+                if borrow == 0 {
+                    break;
+                }
+            }
+            // subtract 2^shift
+            if limb_idx < num_limbs {
+                let (diff, mut c) = self.data[limb_idx].overflowing_sub(1u64 << bit_idx);
+                self.data[limb_idx] = diff;
+                let mut j = limb_idx + 1;
+                while c && j < num_limbs {
+                    let (d, c2) = self.data[j].overflowing_sub(1);
+                    self.data[j] = d;
+                    c = c2;
+                    j += 1;
+                }
+            }
+        }
     }
 
     /// Add two Fermat numbers mod (2^shift + 1).
@@ -231,10 +348,122 @@ impl FermatNum {
         if s == 0 {
             return;
         }
-        let modulus = self.modulus();
-        let val = self.to_biguint();
-        let shifted = (val << s) % modulus;
-        *self = Self::from_biguint(&shifted, self.shift);
+
+        // 2^(2*shift) ≡ 1 (mod 2^shift + 1), so reduce shift amount.
+        let two_shift = 2 * self.shift;
+        let mut s = s % two_shift;
+        if s == 0 {
+            return;
+        }
+
+        // If s >= shift, use 2^shift ≡ -1: negate, then shift by s-shift.
+        // This ensures s < shift for the actual bit-shift below.
+        if s >= self.shift {
+            self.negate_mod();
+            s -= self.shift;
+            if s == 0 {
+                return;
+            }
+        }
+
+        // Now 0 < s < shift. After shifting, the value has < 2*shift+1
+        // bits. One fold (high = value >> shift, result = low - high)
+        // yields at most shift+1 bits, fitting in num_limbs.
+        let num_limbs = self.data.len();
+        let word_shift = s / 64;
+        let bit_shift = s % 64;
+
+        let new_len = num_limbs + word_shift + 1;
+        let mut new_data = vec![0u64; new_len];
+
+        if bit_shift == 0 {
+            new_data[word_shift..word_shift + num_limbs].copy_from_slice(&self.data[..num_limbs]);
+        } else {
+            for i in 0..num_limbs {
+                new_data[i + word_shift] |= self.data[i] << bit_shift;
+                new_data[i + word_shift + 1] = self.data[i] >> (64 - bit_shift);
+            }
+        }
+
+        // Fold: split new_data into low (bits 0..shift) and high
+        // (bits shift..), then compute low - high (mod 2^shift + 1).
+        let limb_idx = self.shift / 64;
+        let bit_idx = self.shift % 64;
+
+        // Extract high = new_data >> shift (at most shift+1 bits since
+        // s < shift and original value < 2^(shift+1)).
+        let high_count = new_len - limb_idx;
+        let mut high = vec![0u64; high_count];
+        if bit_idx == 0 {
+            high[..high_count].copy_from_slice(&new_data[limb_idx..limb_idx + high_count]);
+        } else {
+            for (i, h) in high.iter_mut().enumerate() {
+                let src = limb_idx + i;
+                if src < new_len {
+                    *h = new_data[src] >> bit_idx;
+                    if src + 1 < new_len {
+                        *h |= new_data[src + 1] << (64 - bit_idx);
+                    }
+                }
+            }
+        }
+
+        // Extract low = new_data & (2^shift - 1), store in self.data
+        self.data.fill(0);
+        let copy_len = limb_idx.min(num_limbs);
+        self.data[..copy_len].copy_from_slice(&new_data[..copy_len]);
+        if bit_idx != 0 && limb_idx < num_limbs {
+            self.data[limb_idx] = new_data[limb_idx] & ((1u64 << bit_idx) - 1);
+        }
+
+        // self.data = low - high
+        let mut borrow = 0u64;
+        for (i, &h) in high.iter().enumerate().take(num_limbs) {
+            let (d1, b1) = self.data[i].overflowing_sub(h);
+            let (d2, b2) = d1.overflowing_sub(borrow);
+            self.data[i] = d2;
+            borrow = u64::from(b1) + u64::from(b2);
+        }
+        let mut idx = high.len();
+        while borrow > 0 && idx < num_limbs {
+            let (d, b) = self.data[idx].overflowing_sub(borrow);
+            self.data[idx] = d;
+            borrow = u64::from(b);
+            idx += 1;
+        }
+        if borrow > 0 {
+            self.add_modulus();
+        }
+
+        // After one fold with s < shift, value fits in num_limbs.
+        // normalize handles the final ge_modulus check.
+        self.normalize();
+    }
+
+    /// Negate self mod (2^shift + 1): self = modulus - self.
+    fn negate_mod(&mut self) {
+        if self.data.iter().all(|&x| x == 0) {
+            return;
+        }
+        let num_limbs = self.data.len();
+        let limb_idx = self.shift / 64;
+        let bit_idx = self.shift % 64;
+
+        // Build modulus = 2^shift + 1 in limb form.
+        let mut modulus_data = vec![0u64; num_limbs];
+        modulus_data[0] = 1;
+        if limb_idx < num_limbs {
+            modulus_data[limb_idx] |= 1u64 << bit_idx;
+        }
+
+        // self.data = modulus_data - self.data
+        let mut borrow = 0u64;
+        for (m, d) in modulus_data.iter().zip(self.data.iter_mut()) {
+            let (diff1, b1) = m.overflowing_sub(*d);
+            let (diff2, b2) = diff1.overflowing_sub(borrow);
+            *d = diff2;
+            borrow = u64::from(b1) + u64::from(b2);
+        }
     }
 
     /// Divide by 2^k mod (2^shift + 1).
@@ -245,15 +474,13 @@ impl FermatNum {
         let two_shift = 2 * self.shift;
         let effective = (two_shift - (k % two_shift)) % two_shift;
         if effective > 0 {
-            let modulus = self.modulus();
-            let val = self.to_biguint();
-            let shifted = (val << effective) % modulus;
-            *self = Self::from_biguint(&shifted, self.shift);
+            self.shift_left(effective);
         }
     }
 
     /// Check if this is zero.
     #[must_use]
+    #[allow(dead_code)] // Public API for future callers
     pub fn is_zero(&self) -> bool {
         self.data.iter().all(|&x| x == 0)
     }
@@ -398,6 +625,42 @@ mod tests {
         let mut f = FermatNum::from_biguint(&val, 64);
         f.normalize();
         assert_eq!(f.to_biguint(), BigUint::from(5u64));
+    }
+
+    #[test]
+    fn fermat_normalize_large_values() {
+        // Test with several multiples of the modulus for different shifts
+        for &shift in &[64, 128, 192, 256] {
+            let modulus = (BigUint::one() << shift) + BigUint::one();
+            // Value = 3 * modulus + 42
+            let val = &modulus * BigUint::from(3u64) + BigUint::from(42u64);
+            let mut f = FermatNum::from_biguint(&val, shift);
+            f.normalize();
+            assert_eq!(
+                f.to_biguint(),
+                BigUint::from(42u64),
+                "normalize failed for shift={shift}"
+            );
+
+            // Value = modulus exactly -> should be 0
+            let mut f2 = FermatNum::from_biguint(&modulus, shift);
+            f2.normalize();
+            assert_eq!(
+                f2.to_biguint(),
+                BigUint::from(0u64),
+                "normalize of modulus should be 0 for shift={shift}"
+            );
+
+            // Value = 2 * modulus -> should be 0
+            let val3 = &modulus * BigUint::from(2u64);
+            let mut f3 = FermatNum::from_biguint(&val3, shift);
+            f3.normalize();
+            assert_eq!(
+                f3.to_biguint(),
+                BigUint::from(0u64),
+                "normalize of 2*modulus should be 0 for shift={shift}"
+            );
+        }
     }
 
     #[test]

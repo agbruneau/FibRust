@@ -4,6 +4,7 @@ use std::time::Duration;
 
 use num_bigint::BigUint;
 
+use fibcalc_core::calculator::FibError;
 use fibcalc_core::progress::ProgressUpdate;
 
 /// Trait for reporting progress to the user.
@@ -39,8 +40,8 @@ pub trait ResultPresenter: Send + Sync {
 pub struct CalculationResult {
     /// Algorithm name.
     pub algorithm: String,
-    /// The computed value or an error message.
-    pub outcome: Result<BigUint, String>,
+    /// The computed value or a structured error.
+    pub outcome: Result<BigUint, FibError>,
     /// Computation duration.
     pub duration: Duration,
 }

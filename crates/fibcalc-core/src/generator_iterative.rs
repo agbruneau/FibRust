@@ -7,8 +7,10 @@ use crate::generator::SequenceGenerator;
 use crate::progress::CancellationToken;
 
 /// Iterative generator that computes sequential Fibonacci numbers.
+#[allow(dead_code)] // TODO: Phase 3 — PRD §2.15.1 IterativeGenerator
 pub struct IterativeGenerator;
 
+#[allow(dead_code)] // TODO: Phase 3 — PRD §2.15.1 IterativeGenerator
 impl IterativeGenerator {
     #[must_use]
     pub fn new() -> Self {

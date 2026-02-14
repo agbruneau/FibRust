@@ -10,8 +10,10 @@ pub struct Poly {
     /// Coefficients of the polynomial (`FermatNum` values).
     pub coeffs: Vec<FermatNum>,
     /// Fermat modulus shift parameter.
+    #[allow(dead_code)] // Used in tests via to_biguint()
     pub fermat_shift: usize,
     /// Number of bits per piece used for splitting the input.
+    #[allow(dead_code)] // Used in tests via to_biguint(); also written by from_biguint()
     pub piece_bits: usize,
 }
 
@@ -66,6 +68,7 @@ impl Poly {
 
     /// Convert polynomial back to `BigUint` by evaluating at x = `2^piece_bits`.
     #[must_use]
+    #[allow(dead_code)] // Used in tests
     pub fn to_biguint(&self) -> BigUint {
         let mut result = BigUint::from(0u32);
         for (i, coeff) in self.coeffs.iter().enumerate() {
@@ -76,12 +79,14 @@ impl Poly {
 
     /// Get the number of coefficients.
     #[must_use]
+    #[allow(dead_code)] // Used in tests
     pub fn len(&self) -> usize {
         self.coeffs.len()
     }
 
     /// Check if the polynomial is empty.
     #[must_use]
+    #[allow(dead_code)] // Companion to len()
     pub fn is_empty(&self) -> bool {
         self.coeffs.is_empty()
     }

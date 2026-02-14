@@ -1,4 +1,5 @@
 //! Scan utilities for `BigUint` operations.
+#![allow(dead_code)] // Infrastructure: utility functions for BigUint inspection
 
 use num_bigint::BigUint;
 

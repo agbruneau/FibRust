@@ -11,11 +11,11 @@ use std::cell::RefCell;
 
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
-use parking_lot::Mutex;
 
 use crate::calculator::{CoreCalculator, FibError};
 use crate::observer::ProgressObserver;
 use crate::options::Options;
+use crate::pool;
 use crate::progress::{CancellationToken, ProgressUpdate};
 
 /// State for the Fast Doubling computation, enabling pool reuse.
@@ -56,60 +56,6 @@ impl Default for CalculationState {
     }
 }
 
-/// Thread-local pool of `CalculationState` objects.
-///
-/// Each thread maintains a small stack of pre-allocated states to avoid
-/// repeated allocation in hot loops. The pool uses Mutex for thread-safety
-/// when accessed from Rayon work-stealing threads.
-pub struct CalculationStatePool {
-    pool: Mutex<Vec<CalculationState>>,
-    max_size: usize,
-}
-
-impl CalculationStatePool {
-    /// Create a new pool with the given maximum size.
-    #[must_use]
-    pub fn new(max_size: usize) -> Self {
-        Self {
-            pool: Mutex::new(Vec::with_capacity(max_size)),
-            max_size,
-        }
-    }
-
-    /// Acquire a `CalculationState` from the pool, or create a new one.
-    /// The returned state is always reset and ready for use.
-    pub fn acquire(&self) -> CalculationState {
-        let mut pool = self.pool.lock();
-        match pool.pop() {
-            Some(mut state) => {
-                state.reset();
-                state
-            }
-            None => CalculationState::new(),
-        }
-    }
-
-    /// Return a `CalculationState` to the pool for reuse.
-    pub fn release(&self, state: CalculationState) {
-        let mut pool = self.pool.lock();
-        if pool.len() < self.max_size {
-            pool.push(state);
-        }
-    }
-
-    /// Get the number of states currently in the pool.
-    #[must_use]
-    pub fn available(&self) -> usize {
-        self.pool.lock().len()
-    }
-}
-
-impl Default for CalculationStatePool {
-    fn default() -> Self {
-        Self::new(4)
-    }
-}
-
 thread_local! {
     static CALC_STATE_POOL: RefCell<Vec<CalculationState>> = const { RefCell::new(Vec::new()) };
 }
@@ -118,26 +64,19 @@ const THREAD_LOCAL_POOL_MAX: usize = 4;
 
 /// Acquire a `CalculationState` from the thread-local pool.
 fn tl_acquire_state() -> CalculationState {
-    CALC_STATE_POOL.with(|pool| {
-        let mut pool = pool.borrow_mut();
-        match pool.pop() {
-            Some(mut state) => {
-                state.reset();
-                state
-            }
-            None => CalculationState::new(),
-        }
+    CALC_STATE_POOL.with(|p| {
+        pool::tl_acquire(
+            p,
+            THREAD_LOCAL_POOL_MAX,
+            CalculationState::new,
+            CalculationState::reset,
+        )
     })
 }
 
 /// Return a `CalculationState` to the thread-local pool.
 fn tl_release_state(state: CalculationState) {
-    CALC_STATE_POOL.with(|pool| {
-        let mut pool = pool.borrow_mut();
-        if pool.len() < THREAD_LOCAL_POOL_MAX {
-            pool.push(state);
-        }
-    });
+    CALC_STATE_POOL.with(|p| pool::tl_release(p, THREAD_LOCAL_POOL_MAX, state));
 }
 
 /// Optimized Fast Doubling calculator.
@@ -345,10 +284,10 @@ mod tests {
 
     #[test]
     fn calculation_state_pool_acquire_release() {
-        let pool = CalculationStatePool::new(2);
+        let pool = pool::ObjectPool::<CalculationState>::new(2);
         assert_eq!(pool.available(), 0);
 
-        let state = pool.acquire();
+        let state = pool.acquire(CalculationState::new, CalculationState::reset);
         assert_eq!(state.fk, BigUint::ZERO);
         assert_eq!(state.fk1, BigUint::from(1u32));
 
@@ -356,14 +295,14 @@ mod tests {
         assert_eq!(pool.available(), 1);
 
         // Acquire returns the pooled state (reset)
-        let state2 = pool.acquire();
+        let state2 = pool.acquire(CalculationState::new, CalculationState::reset);
         assert_eq!(state2.fk, BigUint::ZERO);
         assert_eq!(pool.available(), 0);
     }
 
     #[test]
     fn calculation_state_pool_max_size() {
-        let pool = CalculationStatePool::new(1);
+        let pool = pool::ObjectPool::<CalculationState>::new(1);
         let s1 = CalculationState::new();
         let s2 = CalculationState::new();
         pool.release(s1);
