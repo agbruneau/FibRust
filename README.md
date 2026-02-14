@@ -2,7 +2,7 @@
 
 ![License](https://img.shields.io/badge/license-Apache--2.0-blue)
 ![MSRV](https://img.shields.io/badge/MSRV-1.80%2B-orange)
-![Tests](https://img.shields.io/badge/tests-689%2B-brightgreen)
+![Tests](https://img.shields.io/badge/tests-669%2B-brightgreen)
 ![Coverage](https://img.shields.io/badge/coverage-96.1%25-brightgreen)
 
 High-performance Fibonacci calculator written in Rust. Computes arbitrarily large Fibonacci numbers using three algorithms with automatic cross-validation. Ported from [FibGo](https://github.com/agbruneau/Fibonacci) (Go).
@@ -166,15 +166,15 @@ fibcalc-calibration            -- auto-tuning, adaptive benchmarks
 
 | Crate | Lines | Role |
 |-------|-------|------|
-| `fibcalc` | ~950 | Binary entry point, clap config, app orchestration, error handling |
-| `fibcalc-core` | ~5,000 | Fibonacci algorithms, strategies, observers, dynamic thresholds, arena, memory budget |
-| `fibcalc-bigfft` | ~2,500 | FFT multiplication, Fermat numbers, transform cache, bump allocator, pools |
+| `fibcalc` | ~1,170 | Binary entry point, clap config, app orchestration, error handling |
+| `fibcalc-core` | ~5,090 | Fibonacci algorithms, strategies, observers, dynamic thresholds, arena, memory budget |
+| `fibcalc-bigfft` | ~2,780 | FFT multiplication, Fermat numbers, transform cache, bump allocator, pools |
 | `fibcalc-orchestration` | ~550 | Parallel execution, calculator selection, result analysis |
-| `fibcalc-cli` | ~700 | CLI output, progress bars (indicatif), ETA, shell completion |
-| `fibcalc-tui` | ~3,400 | Interactive TUI dashboard (ratatui + crossterm, Elm architecture) |
-| `fibcalc-calibration` | ~1,200 | Auto-tuning, adaptive benchmarks, calibration profiles |
+| `fibcalc-cli` | ~620 | CLI output, progress bars (indicatif), ETA, shell completion |
+| `fibcalc-tui` | ~3,080 | Interactive TUI dashboard (ratatui + crossterm, Elm architecture) |
+| `fibcalc-calibration` | ~1,230 | Auto-tuning, adaptive benchmarks, calibration profiles |
 
-**Total**: ~14,400 lines of Rust across 76 source files.
+**Total**: ~14,500 lines of Rust across 77 source files.
 
 ### Key Traits
 
@@ -213,18 +213,18 @@ FibRust/
 ├── deny.toml                   # License & security policy
 ├── .cargo/config.toml          # Build flags (target-cpu=native)
 ├── crates/
-│   ├── fibcalc/                # Binary entry point (6 files, ~950 lines)
+│   ├── fibcalc/                # Binary entry point (6 files, ~1,170 lines)
 │   │   ├── src/                #   main.rs, lib.rs, app.rs, config.rs, errors.rs, version.rs
 │   │   └── tests/              #   e2e.rs, proptest.rs
-│   ├── fibcalc-core/           # Core algorithms (27 files, ~5,000 lines)
+│   ├── fibcalc-core/           # Core algorithms (28 files, ~5,090 lines)
 │   │   ├── src/                #   calculator, fastdoubling, matrix, fft_based, strategy, observer, ...
 │   │   ├── tests/              #   properties.rs
 │   │   └── benches/            #   fibonacci.rs (criterion)
-│   ├── fibcalc-bigfft/         # FFT multiplication (14 files, ~2,500 lines)
+│   ├── fibcalc-bigfft/         # FFT multiplication (14 files, ~2,780 lines)
 │   ├── fibcalc-orchestration/  # Parallel execution (4 files, ~550 lines)
-│   ├── fibcalc-cli/            # CLI output (6 files, ~700 lines)
-│   ├── fibcalc-tui/            # TUI dashboard (12 files, ~3,400 lines)
-│   └── fibcalc-calibration/    # Auto-tuning (7 files, ~1,200 lines)
+│   ├── fibcalc-cli/            # CLI output (6 files, ~620 lines)
+│   ├── fibcalc-tui/            # TUI dashboard (12 files, ~3,080 lines)
+│   └── fibcalc-calibration/    # Auto-tuning (7 files, ~1,230 lines)
 ├── tests/
 │   ├── golden.rs               # Workspace-level golden file tests
 │   └── testdata/
@@ -266,7 +266,7 @@ See [docs/ALGORITHMS.md](docs/ALGORITHMS.md) for mathematical foundations, proof
 ## Testing
 
 ```bash
-cargo test --workspace               # All tests (689)
+cargo test --workspace               # All tests (669)
 cargo test --lib                      # Unit tests only
 cargo test --test golden              # Golden file tests
 cargo test --test e2e                 # End-to-end CLI tests
@@ -280,14 +280,14 @@ cargo test -- --nocapture             # With stdout output
 
 | Crate | Tests | Line Coverage |
 |-------|-------|---------------|
-| `fibcalc-core` | 187 | 96-100% |
-| `fibcalc-tui` | 171 | 94-100% |
-| `fibcalc-bigfft` | 121 | 87-100% |
+| `fibcalc-core` | 195 | 96-100% |
+| `fibcalc-tui` | 153 | 94-100% |
+| `fibcalc-bigfft` | 122 | 87-100% |
 | `fibcalc-calibration` | 43 | 87-100% |
-| `fibcalc` | 39 | 80-100% |
-| `fibcalc-cli` | 48 | 95-100% |
+| `fibcalc` | 33 | 80-100% |
+| `fibcalc-cli` | 42 | 95-100% |
 | `fibcalc-orchestration` | 20 | 95-100% |
-| **Workspace (golden + e2e + proptest + properties)** | 51 | -- |
+| **Workspace (golden + e2e + proptest + properties)** | 52 | -- |
 | **Doc-tests** | 9 | -- |
 
 ### Test Types
