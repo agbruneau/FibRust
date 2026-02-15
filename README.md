@@ -5,7 +5,7 @@
 ![Tests](https://img.shields.io/badge/tests-669%2B-brightgreen)
 ![Coverage](https://img.shields.io/badge/coverage-96.1%25-brightgreen)
 
-High-performance Fibonacci calculator written in Rust. Computes arbitrarily large Fibonacci numbers using three algorithms with automatic cross-validation. Ported from [FibGo](https://github.com/agbruneau/Fibonacci) (Go).
+This academic project in software engineering, is an High-performance Fibonacci calculator written in Rust. Computes arbitrarily large Fibonacci numbers using three algorithms with automatic cross-validation. Ported from [FibGo](https://github.com/agbruneau/Fibonacci) (Go).
 
 ## Table of Contents
 
@@ -70,11 +70,11 @@ cargo run --release -p fibcalc -- --tui
 
 Benchmarked on a single run (Windows 11, release mode with LTO, native CPU):
 
-| N | Fast Doubling | Matrix Exp. | FFT-Based | Digits |
-|---|---------------|-------------|-----------|--------|
-| 1,000 | 21 us | - | - | 209 |
-| 10,000 | 124 us | 120 us | 68 us | 2,090 |
-| 1,000,000 | 5.8 ms | 26.7 ms | 11.5 ms | 208,988 |
+| N         | Fast Doubling | Matrix Exp. | FFT-Based | Digits  |
+| --------- | ------------- | ----------- | --------- | ------- |
+| 1,000     | 21 us         | -           | -         | 209     |
+| 10,000    | 124 us        | 120 us      | 68 us     | 2,090   |
+| 1,000,000 | 5.8 ms        | 26.7 ms     | 11.5 ms   | 208,988 |
 
 > **Note**: Builds use `-C target-cpu=native` via `.cargo/config.toml`, so binaries are optimized for the local CPU and may not be portable.
 
@@ -97,10 +97,10 @@ cargo build --release --features gmp
 
 ### Cargo Features
 
-| Feature | Description |
-|---------|-------------|
-| `default` | Pure Rust, no external system dependencies |
-| `gmp` | GMP support via `rug` crate (`dep:rug`). LGPL, requires libgmp. |
+| Feature     | Description                                                         |
+| ----------- | ------------------------------------------------------------------- |
+| `default` | Pure Rust, no external system dependencies                          |
+| `gmp`     | GMP support via `rug` crate (`dep:rug`). LGPL, requires libgmp. |
 
 ## Usage
 
@@ -164,28 +164,28 @@ fibcalc-cli / fibcalc-tui     -- CLI output / TUI dashboard
 fibcalc-calibration            -- auto-tuning, adaptive benchmarks
 ```
 
-| Crate | Lines | Role |
-|-------|-------|------|
-| `fibcalc` | ~1,170 | Binary entry point, clap config, app orchestration, error handling |
-| `fibcalc-core` | ~5,090 | Fibonacci algorithms, strategies, observers, dynamic thresholds, arena, memory budget |
-| `fibcalc-bigfft` | ~2,780 | FFT multiplication, Fermat numbers, transform cache, bump allocator, pools |
-| `fibcalc-orchestration` | ~550 | Parallel execution, calculator selection, result analysis |
-| `fibcalc-cli` | ~620 | CLI output, progress bars (indicatif), ETA, shell completion |
-| `fibcalc-tui` | ~3,080 | Interactive TUI dashboard (ratatui + crossterm, Elm architecture) |
-| `fibcalc-calibration` | ~1,230 | Auto-tuning, adaptive benchmarks, calibration profiles |
+| Crate                     | Lines  | Role                                                                                  |
+| ------------------------- | ------ | ------------------------------------------------------------------------------------- |
+| `fibcalc`               | ~1,170 | Binary entry point, clap config, app orchestration, error handling                    |
+| `fibcalc-core`          | ~5,090 | Fibonacci algorithms, strategies, observers, dynamic thresholds, arena, memory budget |
+| `fibcalc-bigfft`        | ~2,780 | FFT multiplication, Fermat numbers, transform cache, bump allocator, pools            |
+| `fibcalc-orchestration` | ~550   | Parallel execution, calculator selection, result analysis                             |
+| `fibcalc-cli`           | ~620   | CLI output, progress bars (indicatif), ETA, shell completion                          |
+| `fibcalc-tui`           | ~3,080 | Interactive TUI dashboard (ratatui + crossterm, Elm architecture)                     |
+| `fibcalc-calibration`   | ~1,230 | Auto-tuning, adaptive benchmarks, calibration profiles                                |
 
 **Total**: ~14,500 lines of Rust across 77 source files.
 
 ### Key Traits
 
-| Trait | File | Purpose |
-|-------|------|---------|
-| `Calculator` | `fibcalc-core/src/calculator.rs` | Public trait for orchestration (`calculate()`, `name()`) |
-| `CoreCalculator` | `fibcalc-core/src/calculator.rs` | Internal trait for algorithm implementations |
-| `Multiplier` | `fibcalc-core/src/strategy.rs` | Narrow interface for multiply/square |
-| `DoublingStepExecutor` | `fibcalc-core/src/strategy.rs` | Extended strategy for optimized doubling steps |
-| `ProgressObserver` | `fibcalc-core/src/observer.rs` | Observer pattern with lock-free `Freeze()` snapshots |
-| `CalculatorFactory` | `fibcalc-core/src/registry.rs` | Factory with lazy creation and `RwLock<HashMap>` cache |
+| Trait                    | File                               | Purpose                                                      |
+| ------------------------ | ---------------------------------- | ------------------------------------------------------------ |
+| `Calculator`           | `fibcalc-core/src/calculator.rs` | Public trait for orchestration (`calculate()`, `name()`) |
+| `CoreCalculator`       | `fibcalc-core/src/calculator.rs` | Internal trait for algorithm implementations                 |
+| `Multiplier`           | `fibcalc-core/src/strategy.rs`   | Narrow interface for multiply/square                         |
+| `DoublingStepExecutor` | `fibcalc-core/src/strategy.rs`   | Extended strategy for optimized doubling steps               |
+| `ProgressObserver`     | `fibcalc-core/src/observer.rs`   | Observer pattern with lock-free `Freeze()` snapshots       |
+| `CalculatorFactory`    | `fibcalc-core/src/registry.rs`   | Factory with lazy creation and `RwLock<HashMap>` cache     |
 
 ### Crate Dependency Graph
 
@@ -238,14 +238,14 @@ FibRust/
 
 The project implements several GoF and systems patterns mapped from Go idioms to Rust:
 
-| Pattern | Implementation | Location |
-|---------|---------------|----------|
-| **Decorator** | `FibCalculator` wraps `CoreCalculator`, adds fast path (n <= 93) and progress reporting | `fibcalc-core/src/calculator.rs` |
-| **Factory + Registry** | `DefaultFactory` with lazy creation and `RwLock<HashMap>` cache | `fibcalc-core/src/registry.rs` |
-| **Strategy + ISP** | `Multiplier` (narrow, 2 methods) and `DoublingStepExecutor` (broad, optimized steps) | `fibcalc-core/src/strategy.rs` |
-| **Observer** | `ProgressSubject`/`ProgressObserver` with lock-free `Freeze()` snapshots for hot loops | `fibcalc-core/src/observer.rs` |
-| **Arena** | `bumpalo::Bump` allocator for FFT temporaries, avoiding per-allocation overhead | `fibcalc-bigfft/src/bump.rs` |
-| **Zero-copy** | `std::mem::take` / `std::mem::replace` for result return without cloning | `fibcalc-core/src/fast_doubling.rs` |
+| Pattern                      | Implementation                                                                               | Location                              |
+| ---------------------------- | -------------------------------------------------------------------------------------------- | ------------------------------------- |
+| **Decorator**          | `FibCalculator` wraps `CoreCalculator`, adds fast path (n <= 93) and progress reporting  | `fibcalc-core/src/calculator.rs`    |
+| **Factory + Registry** | `DefaultFactory` with lazy creation and `RwLock<HashMap>` cache                          | `fibcalc-core/src/registry.rs`      |
+| **Strategy + ISP**     | `Multiplier` (narrow, 2 methods) and `DoublingStepExecutor` (broad, optimized steps)     | `fibcalc-core/src/strategy.rs`      |
+| **Observer**           | `ProgressSubject`/`ProgressObserver` with lock-free `Freeze()` snapshots for hot loops | `fibcalc-core/src/observer.rs`      |
+| **Arena**              | `bumpalo::Bump` allocator for FFT temporaries, avoiding per-allocation overhead            | `fibcalc-bigfft/src/bump.rs`        |
+| **Zero-copy**          | `std::mem::take` / `std::mem::replace` for result return without cloning                 | `fibcalc-core/src/fast_doubling.rs` |
 
 ## Algorithms
 
@@ -278,17 +278,17 @@ cargo test -- --nocapture             # With stdout output
 
 **96.1% line coverage** | **97.0% function coverage** (measured with `cargo-llvm-cov`)
 
-| Crate | Tests | Line Coverage |
-|-------|-------|---------------|
-| `fibcalc-core` | 195 | 96-100% |
-| `fibcalc-tui` | 153 | 94-100% |
-| `fibcalc-bigfft` | 122 | 87-100% |
-| `fibcalc-calibration` | 43 | 87-100% |
-| `fibcalc` | 33 | 80-100% |
-| `fibcalc-cli` | 42 | 95-100% |
-| `fibcalc-orchestration` | 20 | 95-100% |
-| **Workspace (golden + e2e + proptest + properties)** | 52 | -- |
-| **Doc-tests** | 9 | -- |
+| Crate                                                      | Tests | Line Coverage |
+| ---------------------------------------------------------- | ----- | ------------- |
+| `fibcalc-core`                                           | 195   | 96-100%       |
+| `fibcalc-tui`                                            | 153   | 94-100%       |
+| `fibcalc-bigfft`                                         | 122   | 87-100%       |
+| `fibcalc-calibration`                                    | 43    | 87-100%       |
+| `fibcalc`                                                | 33    | 80-100%       |
+| `fibcalc-cli`                                            | 42    | 95-100%       |
+| `fibcalc-orchestration`                                  | 20    | 95-100%       |
+| **Workspace (golden + e2e + proptest + properties)** | 52    | --            |
+| **Doc-tests**                                        | 9     | --            |
 
 ### Test Types
 
@@ -308,14 +308,14 @@ cargo llvm-cov --workspace --html   # HTML report in target/llvm-cov/html/
 
 ## Code Quality
 
-| Tool | Purpose | Command |
-|------|---------|---------|
+| Tool             | Purpose                                         | Command                                 |
+| ---------------- | ----------------------------------------------- | --------------------------------------- |
 | `cargo clippy` | Linting (`pedantic` level, 0 warnings target) | `cargo clippy -- -W clippy::pedantic` |
-| `cargo fmt` | Formatting enforcement | `cargo fmt --check` |
-| `cargo audit` | Security vulnerability detection | `cargo audit` |
-| `cargo deny` | License compatibility via `deny.toml` | `cargo deny check` |
-| `cargo fuzz` | Fuzz testing for edge cases | `cargo fuzz run fuzz_fast_doubling` |
-| `cargo geiger` | Unsafe code audit | `cargo geiger` |
+| `cargo fmt`    | Formatting enforcement                          | `cargo fmt --check`                   |
+| `cargo audit`  | Security vulnerability detection                | `cargo audit`                         |
+| `cargo deny`   | License compatibility via `deny.toml`         | `cargo deny check`                    |
+| `cargo fuzz`   | Fuzz testing for edge cases                     | `cargo fuzz run fuzz_fast_doubling`   |
+| `cargo geiger` | Unsafe code audit                               | `cargo geiger`                        |
 
 ### Build Profiles
 
@@ -334,11 +334,11 @@ Allowed licenses: MIT, Apache-2.0, BSD-2/3-Clause, ISC, Unicode, Zlib, BSL-1.0, 
 
 Configuration precedence: CLI flags > Environment variables (`FIBCALC_*`) > Adaptive calibration > Static defaults.
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| Parallel threshold | 4,096 bits | Switch to parallel multiplication |
-| FFT threshold | 500,000 bits | Switch to FFT multiplication |
-| Strassen threshold | 3,072 bits | Switch to Strassen multiplication |
+| Parameter          | Default      | Description                       |
+| ------------------ | ------------ | --------------------------------- |
+| Parallel threshold | 4,096 bits   | Switch to parallel multiplication |
+| FFT threshold      | 500,000 bits | Switch to FFT multiplication      |
+| Strassen threshold | 3,072 bits   | Switch to Strassen multiplication |
 
 The calibration system auto-tunes these thresholds per hardware. Profiles are stored in `.fibcalc_calibration.json` (gitignored) with CPU model, core count, and measured optimal thresholds.
 
@@ -352,18 +352,18 @@ fibcalc --calibrate
 
 ## Documentation
 
-| Document | Description |
-|----------|-------------|
-| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Four-layer architecture, trait hierarchy, crate dependencies |
-| [ALGORITHMS.md](docs/ALGORITHMS.md) | Mathematical foundations, proofs, complexity analysis |
-| [PERFORMANCE.md](docs/PERFORMANCE.md) | Benchmarks, calibration system, profiling, optimization flags |
-| [API_REFERENCE.md](docs/API_REFERENCE.md) | Public API for all 7 crates, traits, error types, CLI flags |
-| [CONTRIBUTING.md](docs/CONTRIBUTING.md) | Dev setup, code style, testing, PR process |
-| [CROSS_COMPILATION.md](docs/CROSS_COMPILATION.md) | 5 target triples, per-platform build instructions |
-| [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Build, runtime, TUI, and platform-specific issues |
-| [SECURITY.md](docs/SECURITY.md) | Vulnerability reporting, unsafe policy, supply chain security |
-| [CHANGELOG.md](docs/CHANGELOG.md) | Release history (Keep a Changelog format) |
-| [PRD.md](docs/PRD.md) | Complete specification (78 tasks, 7 phases, ~9,500 lines) |
+| Document                                       | Description                                                   |
+| ---------------------------------------------- | ------------------------------------------------------------- |
+| [ARCHITECTURE.md](docs/ARCHITECTURE.md)           | Four-layer architecture, trait hierarchy, crate dependencies  |
+| [ALGORITHMS.md](docs/ALGORITHMS.md)               | Mathematical foundations, proofs, complexity analysis         |
+| [PERFORMANCE.md](docs/PERFORMANCE.md)             | Benchmarks, calibration system, profiling, optimization flags |
+| [API_REFERENCE.md](docs/API_REFERENCE.md)         | Public API for all 7 crates, traits, error types, CLI flags   |
+| [CONTRIBUTING.md](docs/CONTRIBUTING.md)           | Dev setup, code style, testing, PR process                    |
+| [CROSS_COMPILATION.md](docs/CROSS_COMPILATION.md) | 5 target triples, per-platform build instructions             |
+| [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)     | Build, runtime, TUI, and platform-specific issues             |
+| [SECURITY.md](docs/SECURITY.md)                   | Vulnerability reporting, unsafe policy, supply chain security |
+| [CHANGELOG.md](docs/CHANGELOG.md)                 | Release history (Keep a Changelog format)                     |
+| [PRD.md](docs/PRD.md)                             | Complete specification (78 tasks, 7 phases, ~9,500 lines)     |
 
 ## Development
 
@@ -390,34 +390,34 @@ cargo fuzz run fuzz_cross_algorithm -- -max_total_time=30
 
 ### Key Dependencies
 
-| Crate | Role |
-|-------|------|
-| `num-bigint` / `num-traits` | Big number arithmetic (pure Rust, default) |
-| `rug` | GMP bindings (optional `gmp` feature, LGPL) |
-| `rayon` | Work-stealing parallelism |
-| `crossbeam` / `crossbeam-channel` | Channels and concurrent primitives |
-| `ratatui` + `crossterm` | Interactive TUI |
-| `clap` + `clap_complete` | CLI parsing + shell completion |
-| `bumpalo` | Bump allocator for FFT temporaries |
-| `parking_lot` | Fast mutexes/RwLocks |
-| `tracing` + `tracing-subscriber` | Structured logging with env-filter |
-| `thiserror` / `anyhow` | Error derivation / contextual errors |
-| `serde` + `serde_json` | Serialization (calibration profiles) |
-| `indicatif` + `console` | Progress bars and terminal utilities |
-| `sysinfo` | CPU/system information for calibration |
-| `criterion` | Benchmarks with HTML reports (dev) |
-| `proptest` | Property-based testing (dev) |
-| `assert_cmd` + `predicates` | E2E CLI testing (dev) |
+| Crate                                 | Role                                          |
+| ------------------------------------- | --------------------------------------------- |
+| `num-bigint` / `num-traits`       | Big number arithmetic (pure Rust, default)    |
+| `rug`                               | GMP bindings (optional `gmp` feature, LGPL) |
+| `rayon`                             | Work-stealing parallelism                     |
+| `crossbeam` / `crossbeam-channel` | Channels and concurrent primitives            |
+| `ratatui` + `crossterm`           | Interactive TUI                               |
+| `clap` + `clap_complete`          | CLI parsing + shell completion                |
+| `bumpalo`                           | Bump allocator for FFT temporaries            |
+| `parking_lot`                       | Fast mutexes/RwLocks                          |
+| `tracing` + `tracing-subscriber`  | Structured logging with env-filter            |
+| `thiserror` / `anyhow`            | Error derivation / contextual errors          |
+| `serde` + `serde_json`            | Serialization (calibration profiles)          |
+| `indicatif` + `console`           | Progress bars and terminal utilities          |
+| `sysinfo`                           | CPU/system information for calibration        |
+| `criterion`                         | Benchmarks with HTML reports (dev)            |
+| `proptest`                          | Property-based testing (dev)                  |
+| `assert_cmd` + `predicates`       | E2E CLI testing (dev)                         |
 
 ## Cross-Compilation
 
-| Target | Priority |
-|--------|----------|
-| `x86_64-unknown-linux-gnu` | P0 |
-| `x86_64-unknown-linux-musl` | P1 |
-| `x86_64-pc-windows-msvc` | P1 |
-| `x86_64-apple-darwin` | P1 |
-| `aarch64-apple-darwin` | P1 |
+| Target                        | Priority |
+| ----------------------------- | -------- |
+| `x86_64-unknown-linux-gnu`  | P0       |
+| `x86_64-unknown-linux-musl` | P1       |
+| `x86_64-pc-windows-msvc`    | P1       |
+| `x86_64-apple-darwin`       | P1       |
+| `aarch64-apple-darwin`      | P1       |
 
 > **Note**: Remove `-C target-cpu=native` from `.cargo/config.toml` when cross-compiling. See [docs/CROSS_COMPILATION.md](docs/CROSS_COMPILATION.md) for detailed per-platform instructions.
 
