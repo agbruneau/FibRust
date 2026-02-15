@@ -5,7 +5,7 @@
 ![Tests](https://img.shields.io/badge/tests-669%2B-brightgreen)
 ![Coverage](https://img.shields.io/badge/coverage-96.1%25-brightgreen)
 
-This academic project in software engineering, is an High-performance Fibonacci calculator written in Rust. Computes arbitrarily large Fibonacci numbers using three algorithms with automatic cross-validation. Ported from [FibGo](https://github.com/agbruneau/Fibonacci) (Go).
+This academic prototype in software engineering, is an High-performance Fibonacci calculator written in Rust. Computes arbitrarily large Fibonacci numbers using three algorithms with automatic cross-validation. Ported from [FibGo](https://github.com/agbruneau/Fibonacci) (Go).
 
 ## Table of Contents
 
