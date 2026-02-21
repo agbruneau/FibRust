@@ -1,65 +1,91 @@
-# CLAUDE.md
+# CLAUDE.md — FibRust (FibCalc-rs)
 
-Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
+Calculateur Fibonacci haute performance en Rust. Prototype académique exploitant le système de types, la sûreté mémoire et les abstractions zero-cost de Rust pour le calcul numérique.
 
-**Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
+## Projet
 
-## 1. Think Before Coding
+- **Workspace** : 7 crates Cargo
+- **Rust** : 1.80+ (MSRV), édition 2021
+- **Licence** : Apache 2.0
+- **Taille** : ~14 000 lignes, 669+ tests, 96.1% couverture
+- **Unsafe** : `unsafe_code = "forbid"` au niveau workspace
 
-**Don't assume. Don't hide confusion. Surface tradeoffs.**
+## Architecture (4 couches, 7 crates)
 
-Before implementing:
-- State your assumptions explicitly. If uncertain, ask.
-- If multiple interpretations exist, present them - don't pick silently.
-- If a simpler approach exists, say so. Push back when warranted.
-- If something is unclear, stop. Name what's confusing. Ask.
-
-## 2. Simplicity First
-
-**Minimum code that solves the problem. Nothing speculative.**
-
-- No features beyond what was asked.
-- No abstractions for single-use code.
-- No "flexibility" or "configurability" that wasn't requested.
-- No error handling for impossible scenarios.
-- If you write 200 lines and it could be 50, rewrite it.
-
-Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
-
-## 3. Surgical Changes
-
-**Touch only what you must. Clean up only your own mess.**
-
-When editing existing code:
-- Don't "improve" adjacent code, comments, or formatting.
-- Don't refactor things that aren't broken.
-- Match existing style, even if you'd do it differently.
-- If you notice unrelated dead code, mention it - don't delete it.
-
-When your changes create orphans:
-- Remove imports/variables/functions that YOUR changes made unused.
-- Don't remove pre-existing dead code unless asked.
-
-The test: Every changed line should trace directly to the user's request.
-
-## 4. Goal-Driven Execution
-
-**Define success criteria. Loop until verified.**
-
-Transform tasks into verifiable goals:
-- "Add validation" → "Write tests for invalid inputs, then make them pass"
-- "Fix the bug" → "Write a test that reproduces it, then make it pass"
-- "Refactor X" → "Ensure tests pass before and after"
-
-For multi-step tasks, state a brief plan:
 ```
-1. [Step] → verify: [check]
-2. [Step] → verify: [check]
-3. [Step] → verify: [check]
+crates/
+  fibcalc/              # Binaire : CLI parsing, dispatch, signal handling (clap)
+  fibcalc-core/         # CŒUR : algorithmes, traits, stratégies, observers, registre
+  fibcalc-bigfft/       # Multiplication FFT, nombres de Fermat, cache, allocateur
+  fibcalc-orchestration/ # Exécution parallèle, sélection calculateur, analyse
+  fibcalc-calibration/  # Auto-tuning adaptatif, micro-benchmarks, profils
+  fibcalc-cli/          # Présentation CLI, barres de progression, complétion shell
+  fibcalc-tui/          # Dashboard TUI interactif (ratatui, architecture Elm MVU)
+tests/
+  golden.rs             # Tests d'intégration golden file
+  testdata/             # Données de référence
+fuzz/                   # Cibles libfuzzer
 ```
 
-Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
+## Stack technique
 
----
+| Domaine | Technologie |
+|---------|-------------|
+| Big integers | `num-bigint` (défaut) / `rug` (GMP, optionnel) |
+| Parallélisme | `rayon` (work-stealing), `crossbeam` (channels) |
+| CLI | `clap` (derive mode) + `clap_complete` |
+| TUI | `ratatui` 0.29 + `crossterm` 0.28 |
+| Allocation | `bumpalo` (arena), pools thread-local |
+| Synchro | `parking_lot` 0.12 |
+| Logging | `tracing` + `tracing-subscriber` |
+| Erreurs | `thiserror` (lib) / `anyhow` (bin) |
+| Sérialisation | `serde` + `serde_json` |
 
-**These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
+## Algorithmes
+
+1. **Fast Doubling** — O(log n), overhead minimal
+2. **Matrix Exponentiation** — O(log n), opérations matricielles
+3. **FFT-Based** — O(n log n) pour nombres massifs
+4. **Cross-validation** : les 3 algorithmes tournent en parallèle, résultats comparés
+
+## Profil de build
+
+```toml
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
+opt-level = 3
+panic = "abort"
+overflow-checks = true
+```
+
+Rustflags : `-C target-cpu=native`
+
+## Testing
+
+- **Golden file tests** : `tests/golden.rs` contre `fibonacci_golden.json`
+- **Property-based** : `proptest` dans `fibcalc-core/tests/properties.rs`
+- **E2E** : `assert_cmd` + `predicates` dans `fibcalc/tests/e2e.rs`
+- **Benchmarks** : `criterion` 0.5 dans `fibcalc-core/benches/fibonacci.rs`
+- **Fuzzing** : libfuzzer dans `fuzz/`
+
+## Linting (Clippy pedantic)
+
+```toml
+[workspace.lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+```
+
+Exceptions autorisées : `module_name_repetitions`, `must_use_candidate`, `missing_errors_doc`, `missing_panics_doc`, `similar_names`, `struct_excessive_bools`, `items_after_statements`, `unused_self`, `if_not_else`, `redundant_else`.
+
+## Directives pour Claude
+
+1. **Zero unsafe** : `unsafe_code = "forbid"` — aucune exception. Trouver des alternatives safe.
+2. **Ownership** : Respecter les patterns de transfert de propriété existants (`pointer stealing`, arena allocation).
+3. **Tests obligatoires** : `cargo test --workspace` doit passer. Golden tests = source de vérité.
+4. **Clippy pedantic** : `cargo clippy --workspace -- -D warnings` doit passer.
+5. **Séparation des crates** : Respecter les frontières de dépendance. `fibcalc-core` ne dépend pas de `fibcalc-cli`.
+6. **Traits** : Utiliser les traits existants (`FibCalculator`, `ProgressObserver`, `CalculatorFactory`). Ne pas créer de nouveaux traits sans justification.
+7. **Performance** : Ne pas introduire de `clone()` inutiles, d'allocations dans les hot paths, ou de `Box<dyn>` là où les génériques suffisent.
+8. **Modifications chirurgicales** : Codebase mature — pas de refactoring sans demande explicite.
