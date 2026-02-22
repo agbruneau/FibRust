@@ -20,6 +20,7 @@ pub struct FibIterator {
 }
 
 impl FibIterator {
+    /// Create a new Fibonacci iterator starting from F(0).
     #[must_use]
     pub fn new() -> Self {
         Self {

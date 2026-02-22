@@ -18,6 +18,7 @@ use crate::strategy::{AdaptiveStrategy, DoublingStepExecutor};
 pub struct FFTBasedCalculator;
 
 impl FFTBasedCalculator {
+    /// Create a new FFT-based Fibonacci calculator.
     #[must_use]
     pub fn new() -> Self {
         Self

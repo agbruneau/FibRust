@@ -15,6 +15,7 @@ use crate::progress::{CancellationToken, ProgressUpdate};
 pub struct FastDoublingMod;
 
 impl FastDoublingMod {
+    /// Create a new modular Fast Doubling calculator.
     #[must_use]
     pub fn new() -> Self {
         Self
