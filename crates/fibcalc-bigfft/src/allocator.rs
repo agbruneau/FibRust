@@ -17,6 +17,7 @@ pub struct PoolAllocator {
 }
 
 impl PoolAllocator {
+    /// Create a new pool-based allocator with default settings.
     #[must_use]
     pub fn new() -> Self {
         Self {
