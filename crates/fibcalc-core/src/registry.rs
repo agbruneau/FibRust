@@ -6,6 +6,8 @@ use std::sync::Arc;
 use parking_lot::RwLock;
 
 use crate::calculator::{Calculator, FibCalculator, FibError};
+#[cfg(feature = "gmp")]
+use crate::calculator_gmp::GmpCalculator;
 use crate::fastdoubling::OptimizedFastDoubling;
 use crate::fft_based::FFTBasedCalculator;
 use crate::matrix::MatrixExponentiation;
@@ -51,6 +53,11 @@ impl DefaultFactory {
                 let core = Arc::new(FFTBasedCalculator::new());
                 Ok(Arc::new(FibCalculator::new(core)))
             }
+            #[cfg(feature = "gmp")]
+            "gmp" => {
+                let core = Arc::new(GmpCalculator::new());
+                Ok(Arc::new(FibCalculator::new(core)))
+            }
             _ => Err(FibError::Config(format!("unknown calculator: {name}"))),
         }
     }
@@ -78,7 +85,14 @@ impl CalculatorFactory for DefaultFactory {
     }
 
     fn available(&self) -> Vec<&str> {
-        vec!["fast", "matrix", "fft"]
+        #[cfg(not(feature = "gmp"))]
+        {
+            vec!["fast", "matrix", "fft"]
+        }
+        #[cfg(feature = "gmp")]
+        {
+            vec!["fast", "matrix", "fft", "gmp"]
+        }
     }
 }
 
@@ -131,5 +145,22 @@ mod tests {
         assert!(available.contains(&"fast"));
         assert!(available.contains(&"matrix"));
         assert!(available.contains(&"fft"));
+    }
+
+    #[cfg(feature = "gmp")]
+    #[test]
+    fn factory_creates_gmp() {
+        let factory = DefaultFactory::new();
+        let calc = factory.get("gmp");
+        assert!(calc.is_ok());
+        assert_eq!(calc.unwrap().name(), "GMP");
+    }
+
+    #[cfg(feature = "gmp")]
+    #[test]
+    fn factory_available_includes_gmp() {
+        let factory = DefaultFactory::new();
+        let available = factory.available();
+        assert!(available.contains(&"gmp"));
     }
 }
