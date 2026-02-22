@@ -84,7 +84,7 @@ impl FermatNum {
                     || self
                         .data
                         .get(limb_idx + 1..)
-                        .map_or(false, |s| s.iter().any(|&x| x != 0))
+                        .is_some_and(|s| s.iter().any(|&x| x != 0))
             } else {
                 // Bit `shift` is data[limb_idx] bit bit_idx.
                 // "Strictly above" means bits above bit_idx+1 in limb_idx, or higher limbs.
@@ -93,7 +93,7 @@ impl FermatNum {
                     || self
                         .data
                         .get(limb_idx + 1..)
-                        .map_or(false, |s| s.iter().any(|&x| x != 0))
+                        .is_some_and(|s| s.iter().any(|&x| x != 0))
             };
 
             if !has_bits_above_shift {
@@ -132,8 +132,8 @@ impl FermatNum {
 
             // low -= high (since 2^shift ≡ -1)
             let mut borrow = 0u64;
-            for i in 0..high.len().min(num_limbs) {
-                let (diff1, b1) = self.data[i].overflowing_sub(high[i]);
+            for (i, &h) in high.iter().enumerate().take(high.len().min(num_limbs)) {
+                let (diff1, b1) = self.data[i].overflowing_sub(h);
                 let (diff2, b2) = diff1.overflowing_sub(borrow);
                 self.data[i] = diff2;
                 borrow = u64::from(b1) + u64::from(b2);

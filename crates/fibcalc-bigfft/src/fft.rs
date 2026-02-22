@@ -3,12 +3,19 @@
 //! Routes to the NTT-based multiplication pipeline for large operands,
 //! and falls back to standard num-bigint multiplication for small ones.
 
+use std::cell::RefCell;
+
 use num_bigint::BigUint;
 use num_traits::Zero;
 
+use crate::bump::FFTBumpAllocator;
 use crate::fermat::select_fft_params;
 use crate::fft_core::{fft_forward, fft_inverse};
 use crate::fft_poly::{pointwise_multiply, reassemble, Poly};
+
+thread_local! {
+    static FFT_BUMP: RefCell<FFTBumpAllocator> = RefCell::new(FFTBumpAllocator::with_capacity(1024 * 1024));
+}
 
 /// Threshold in bits above which FFT multiplication is used.
 const FFT_BIT_THRESHOLD: usize = 10_000;
@@ -54,29 +61,36 @@ fn fft_multiply(a: &BigUint, b: &BigUint) -> BigUint {
         return BigUint::ZERO;
     }
 
-    let a_bits = a.bits() as usize;
-    let b_bits = b.bits() as usize;
-    let (piece_bits, n, fermat_shift) = select_fft_params(a_bits, b_bits);
+    FFT_BUMP.with(|bump| {
+        bump.borrow_mut().reset();
 
-    // Split into polynomials
-    let poly_a = Poly::from_biguint(a, n, piece_bits, fermat_shift);
-    let poly_b = Poly::from_biguint(b, n, piece_bits, fermat_shift);
+        let a_bits = a.bits() as usize;
+        let b_bits = b.bits() as usize;
+        let (piece_bits, n, fermat_shift) = select_fft_params(a_bits, b_bits);
 
-    let mut coeffs_a = poly_a.coeffs;
-    let mut coeffs_b = poly_b.coeffs;
+        // Split into polynomials
+        let poly_a = Poly::from_biguint(a, n, piece_bits, fermat_shift);
+        let poly_b = Poly::from_biguint(b, n, piece_bits, fermat_shift);
 
-    // Forward NTT
-    fft_forward(&mut coeffs_a, fermat_shift);
-    fft_forward(&mut coeffs_b, fermat_shift);
+        let mut coeffs_a = poly_a.coeffs;
+        let mut coeffs_b = poly_b.coeffs;
 
-    // Pointwise multiply in transform domain
-    let mut result_coeffs = pointwise_multiply(&coeffs_a, &coeffs_b, fermat_shift);
+        // Forward NTT
+        fft_forward(&mut coeffs_a, fermat_shift);
+        fft_forward(&mut coeffs_b, fermat_shift);
 
-    // Inverse NTT
-    fft_inverse(&mut result_coeffs, fermat_shift);
+        // Pointwise multiply in transform domain
+        let mut result_coeffs = pointwise_multiply(&coeffs_a, &coeffs_b, fermat_shift);
 
-    // Reassemble from polynomial coefficients
-    reassemble(&result_coeffs, piece_bits)
+        // Inverse NTT
+        fft_inverse(&mut result_coeffs, fermat_shift);
+
+        // Reassemble from polynomial coefficients
+        let result = reassemble(&result_coeffs, piece_bits);
+
+        bump.borrow_mut().reset(); // free arena memory
+        result
+    })
 }
 
 /// FFT squaring with transform reuse optimization.
@@ -88,27 +102,34 @@ fn fft_square(a: &BigUint) -> BigUint {
         return BigUint::ZERO;
     }
 
-    let a_bits = a.bits() as usize;
-    let (piece_bits, n, fermat_shift) = select_fft_params(a_bits, a_bits);
+    FFT_BUMP.with(|bump| {
+        bump.borrow_mut().reset();
 
-    // Split into polynomial
-    let poly_a = Poly::from_biguint(a, n, piece_bits, fermat_shift);
-    let mut coeffs = poly_a.coeffs;
+        let a_bits = a.bits() as usize;
+        let (piece_bits, n, fermat_shift) = select_fft_params(a_bits, a_bits);
 
-    // Forward NTT (only once for squaring)
-    fft_forward(&mut coeffs, fermat_shift);
+        // Split into polynomial
+        let poly_a = Poly::from_biguint(a, n, piece_bits, fermat_shift);
+        let mut coeffs = poly_a.coeffs;
 
-    // Pointwise square in-place (reuse same transform, no new allocation)
-    for coeff in &mut coeffs {
-        let squared = coeff.fermat_mul(coeff);
-        *coeff = squared;
-    }
+        // Forward NTT (only once for squaring)
+        fft_forward(&mut coeffs, fermat_shift);
 
-    // Inverse NTT
-    fft_inverse(&mut coeffs, fermat_shift);
+        // Pointwise square in-place (reuse same transform, no new allocation)
+        for coeff in &mut coeffs {
+            let squared = coeff.fermat_mul(coeff);
+            *coeff = squared;
+        }
 
-    // Reassemble
-    reassemble(&coeffs, piece_bits)
+        // Inverse NTT
+        fft_inverse(&mut coeffs, fermat_shift);
+
+        // Reassemble
+        let result = reassemble(&coeffs, piece_bits);
+
+        bump.borrow_mut().reset();
+        result
+    })
 }
 
 /// Direct FFT multiply (always uses FFT, for testing purposes).
@@ -179,5 +200,15 @@ mod tests {
         let expected = &a * &b;
         let got = fft_multiply_direct(&a, &b);
         assert_eq!(expected, got, "FFT multiply failed for asymmetric operands");
+    }
+
+    #[test]
+    fn fft_multiply_with_bump_allocator() {
+        // Large enough to trigger FFT path (> FFT_BIT_THRESHOLD = 10_000 bits)
+        let a = (BigUint::one() << 12_000) - BigUint::one();
+        let b = (BigUint::one() << 12_000) - BigUint::from(3u64);
+        let expected = &a * &b;
+        let got = mul(&a, &b);
+        assert_eq!(expected, got, "FFT multiply with bump allocator should be correct");
     }
 }

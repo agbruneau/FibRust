@@ -1,5 +1,4 @@
 //! O(1) bump allocator for FFT temporaries.
-#![allow(dead_code)] // Infrastructure: will be wired up for arena-based FFT allocation
 
 use bumpalo::Bump;
 
@@ -24,6 +23,7 @@ impl FFTBumpAllocator {
     }
 
     /// Allocate a slice of u64 values.
+    #[allow(dead_code)] // Used in tests; will be wired into FFT inner loops
     pub fn alloc_slice(&self, len: usize) -> &mut [u64] {
         self.bump.alloc_slice_fill_default(len)
     }
@@ -35,6 +35,7 @@ impl FFTBumpAllocator {
 
     /// Get bytes allocated.
     #[must_use]
+    #[allow(dead_code)] // Used in tests; will be wired into FFT diagnostics
     pub fn allocated_bytes(&self) -> usize {
         self.bump.allocated_bytes()
     }
