@@ -70,6 +70,9 @@ serde_json = "1"
 # System info
 sysinfo = "0.32"
 
+# CPU affinity
+core_affinity = "0.8"
+
 # CLI display
 indicatif = "0.17"
 console = "0.15"

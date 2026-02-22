@@ -18,6 +18,24 @@ use fibcalc_orchestration::orchestrator::{
 
 use crate::config::AppConfig;
 
+/// Return the list of available CPU core IDs on this system.
+///
+/// Returns an empty `Vec` if the platform does not support core enumeration.
+fn available_cores() -> Vec<core_affinity::CoreId> {
+    core_affinity::get_core_ids().unwrap_or_default()
+}
+
+/// Pin the calling thread to the given logical core index.
+///
+/// Silently does nothing if the index is out of range or the platform
+/// does not support affinity.
+fn pin_to_core(core_index: usize) {
+    let cores = available_cores();
+    if let Some(&core_id) = cores.get(core_index) {
+        let _ = core_affinity::set_for_current(core_id);
+    }
+}
+
 /// Run the application.
 ///
 /// # Errors
@@ -186,10 +204,11 @@ fn run_tui(config: &AppConfig) -> Result<()> {
     let mut app = fibcalc_tui::TuiApp::new(rx);
     app.set_n(config.n);
 
-    // Spawn metrics collection thread
+    // Spawn metrics collection thread (pinned to core 0 alongside TUI)
     let metrics_tx = tx.clone();
     let metrics_cancel = cancel.clone();
     std::thread::spawn(move || {
+        pin_to_core(0);
         let mut collector = fibcalc_tui::MetricsCollector::new();
         loop {
             if metrics_cancel.is_cancelled() {
@@ -206,10 +225,11 @@ fn run_tui(config: &AppConfig) -> Result<()> {
         }
     });
 
-    // Spawn background thread for calculations
+    // Spawn background thread for calculations (pinned to core 1+ if available)
     let n = config.n;
     let timeout = Some(config.timeout_duration());
     std::thread::spawn(move || {
+        pin_to_core(1);
         let _ = tx.send(fibcalc_tui::TuiMessage::Started);
 
         // Use the bridge observer so progress updates reach the TUI
@@ -249,6 +269,9 @@ fn run_tui(config: &AppConfig) -> Result<()> {
             "All calculations complete. Press 'q' to quit.".to_string(),
         ));
     });
+
+    // Pin TUI event loop to core 0 so it stays responsive
+    pin_to_core(0);
 
     // Run TUI event loop on the main thread
     app.run().map_err(|e| anyhow::anyhow!("TUI error: {e}"))?;
@@ -622,6 +645,19 @@ mod tests {
         config.quiet = true;
         let result = run_calibration(&config);
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn core_affinity_fallback_works() {
+        // Pinning to an impossibly high index should silently do nothing.
+        pin_to_core(99999);
+        // Pinning to core 0 should succeed or silently fail on unsupported platforms.
+        pin_to_core(0);
+        // available_cores should return a non-panic result.
+        let cores = available_cores();
+        // We expect at least one core on any real machine, but we don't
+        // hard-assert it since CI environments may vary.
+        let _ = cores.len();
     }
 
     #[test]
