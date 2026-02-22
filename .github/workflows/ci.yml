@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -Dwarnings
+
+jobs:
+  test-pure-rust:
+    name: Test (pure Rust)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build
+        run: cargo build --workspace
+
+      - name: Test
+        run: cargo test --workspace
+
+      - name: Clippy
+        run: cargo clippy --workspace -- -D warnings
+
+      - name: Doc
+        run: cargo doc --workspace --no-deps
+
+  test-gmp:
+    name: Test (GMP)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install libgmp-dev
+        run: sudo apt-get update && sudo apt-get install -y libgmp-dev
+
+      - name: Build with GMP
+        run: cargo build --workspace --features gmp
+
+      - name: Test with GMP
+        run: cargo test --workspace --features gmp
+
+      - name: Clippy with GMP
+        run: cargo clippy --workspace --features gmp -- -D warnings
