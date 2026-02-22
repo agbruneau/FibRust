@@ -26,6 +26,7 @@ rust-version = "1.80"
 authors = ["FibCalc-rs Contributors"]
 license = "Apache-2.0"
 repository = "https://github.com/agbruneau/FibRust"
+keywords = ["fibonacci", "mathematics", "high-performance", "algorithms"]
 
 [workspace.dependencies]
 # Core arithmetic

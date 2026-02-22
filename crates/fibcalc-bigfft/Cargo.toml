@@ -4,6 +4,9 @@ version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories = ["mathematics", "algorithms"]
 description = "FFT-based big number multiplication using Fermat numbers"
 
 [dependencies]
