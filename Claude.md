@@ -23,6 +23,7 @@ crates/
   fibcalc-tui/          # Dashboard TUI interactif (ratatui, architecture Elm MVU)
 tests/
   golden.rs             # Tests d'intégration golden file
+  allocator_integration.rs # Test d'intégration allocateur FFT
   testdata/             # Données de référence
 fuzz/                   # Cibles libfuzzer
 ```
@@ -31,11 +32,12 @@ fuzz/                   # Cibles libfuzzer
 
 | Domaine | Technologie |
 |---------|-------------|
-| Big integers | `num-bigint` (défaut) / `rug` (GMP, optionnel) |
+| Big integers | `num-bigint` (défaut) / `rug` (GMP, feature `gmp`, `GmpCalculator`) |
 | Parallélisme | `rayon` (work-stealing), `crossbeam` (channels) |
 | CLI | `clap` (derive mode) + `clap_complete` |
 | TUI | `ratatui` 0.29 + `crossterm` 0.28 |
-| Allocation | `bumpalo` (arena), pools thread-local |
+| Allocation | `bumpalo` (arena, active in FFT), thread-local pool allocator (active) |
+| CPU affinity | `core_affinity` 0.8 (core pinning dans `fibcalc`) |
 | Synchro | `parking_lot` 0.12 |
 | Logging | `tracing` + `tracing-subscriber` |
 | Erreurs | `thiserror` (lib) / `anyhow` (bin) |
@@ -68,7 +70,14 @@ Rustflags : `-C target-cpu=native`
 - **Property-based** : `proptest` dans `fibcalc-core/tests/properties.rs`
 - **E2E** : `assert_cmd` + `predicates` dans `fibcalc/tests/e2e.rs`
 - **Benchmarks** : `criterion` 0.5 dans `fibcalc-core/benches/fibonacci.rs`
+- **Allocator integration** : `tests/allocator_integration.rs` (vérifie FFT infra active)
 - **Fuzzing** : libfuzzer dans `fuzz/`
+
+## CI
+
+`.github/workflows/ci.yml` — deux jobs :
+1. **Test (pure Rust)** : build, test, clippy, doc (ubuntu-latest)
+2. **Test (GMP)** : installe `libgmp-dev`, build/test/clippy avec `--features gmp`
 
 ## Linting (Clippy pedantic)
 
