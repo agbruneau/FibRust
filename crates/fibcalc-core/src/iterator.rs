@@ -74,7 +74,7 @@ fn fib_pair(n: u64) -> (BigUint, BigUint) {
             a = f2k;
             b = f2k1;
         } else {
-            a = f2k1.clone();
+            a.clone_from(&f2k1);
             b = f2k + f2k1;
         }
     }

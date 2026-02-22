@@ -29,6 +29,7 @@ pub mod registry;
 pub mod strategy;
 pub(crate) mod threshold_types;
 
+#[cfg_attr(docsrs, doc(cfg(feature = "gmp")))]
 #[cfg(feature = "gmp")]
 pub mod calculator_gmp;
 
@@ -43,6 +44,9 @@ pub use options::Options;
 pub use progress::ProgressUpdate;
 pub use registry::{CalculatorFactory, DefaultFactory};
 pub use strategy::{DoublingStepExecutor, Multiplier};
+
+#[cfg(feature = "gmp")]
+pub use calculator_gmp::GmpCalculator;
 
 use num_bigint::BigUint;
 

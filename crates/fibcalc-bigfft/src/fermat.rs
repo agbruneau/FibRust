@@ -132,10 +132,13 @@ impl FermatNum {
 
             // low -= high (since 2^shift ≡ -1)
             let mut borrow = 0u64;
-            for (i, &h) in high.iter().enumerate().take(high.len().min(num_limbs)) {
-                let (diff1, b1) = self.data[i].overflowing_sub(h);
+            for (d, &h) in self.data[..num_limbs]
+                .iter_mut()
+                .zip(high.iter())
+            {
+                let (diff1, b1) = d.overflowing_sub(h);
                 let (diff2, b2) = diff1.overflowing_sub(borrow);
-                self.data[i] = diff2;
+                *d = diff2;
                 borrow = u64::from(b1) + u64::from(b2);
             }
             let mut i = high.len();

@@ -4,6 +4,7 @@ use num_bigint::BigUint;
 
 /// 2x2 matrix of `BigUint` values.
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct Matrix {
     pub a: BigUint, // [0][0]
     pub b: BigUint, // [0][1]
@@ -36,6 +37,7 @@ impl Matrix {
 
     /// Check if this is the identity matrix.
     #[must_use]
+    #[allow(dead_code)]
     pub fn is_identity(&self) -> bool {
         self.a == BigUint::from(1u32)
             && self.b == BigUint::ZERO

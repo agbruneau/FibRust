@@ -15,11 +15,13 @@ use parking_lot::Mutex;
 /// into the pool up to `max_size`. When the pool is empty, `acquire`
 /// creates a new object via the factory; when the pool is full, `release`
 /// drops the object.
+#[allow(dead_code)]
 pub struct ObjectPool<T> {
     pool: Mutex<Vec<T>>,
     max_size: usize,
 }
 
+#[allow(dead_code)]
 impl<T: Send> ObjectPool<T> {
     /// Create a new pool with the given maximum capacity.
     #[must_use]
