@@ -12,6 +12,10 @@ pub struct MemoryEstimate {
 }
 
 impl MemoryEstimate {
+    /// Bit threshold above which FFT multiplication is used inside
+    /// `fibcalc-bigfft`. Kept in sync with `FFT_BIT_THRESHOLD` in `fft.rs`.
+    const FFT_BIT_THRESHOLD: usize = 10_000;
+
     /// Estimate memory usage for computing F(n).
     #[must_use]
     #[allow(
@@ -26,7 +30,13 @@ impl MemoryEstimate {
         let result_bytes = result_bits.div_ceil(8);
 
         // Temporaries: ~5x the result for Fast Doubling (FK, FK1, T1, T2, T3)
-        let temp_bytes = result_bytes * 5;
+        let mut temp_bytes = result_bytes * 5;
+
+        // When the result is large enough, FFT multiplication is used and
+        // requires additional working memory for polynomial transforms.
+        if result_bits >= Self::FFT_BIT_THRESHOLD {
+            temp_bytes += fibcalc_bigfft::estimate_fft_memory(result_bits, result_bits);
+        }
 
         Self {
             result_bytes,
@@ -113,5 +123,27 @@ mod tests {
     #[test]
     fn parse_memory_limit_invalid() {
         assert!(parse_memory_limit("abc").is_err());
+    }
+
+    #[test]
+    fn estimate_includes_fft_for_large_n() {
+        // n = 100_000 gives ~69_420 result bits, well above FFT_BIT_THRESHOLD.
+        let large = MemoryEstimate::estimate(100_000);
+        // Without FFT overhead, temp_bytes would be exactly 5x result_bytes.
+        let base_temp = large.result_bytes * 5;
+        assert!(
+            large.temp_bytes > base_temp,
+            "Large n should include FFT memory overhead: temp={} base={}",
+            large.temp_bytes,
+            base_temp
+        );
+
+        // n = 10 gives ~7 result bits, well below FFT_BIT_THRESHOLD.
+        let small = MemoryEstimate::estimate(10);
+        let small_base_temp = small.result_bytes * 5;
+        assert_eq!(
+            small.temp_bytes, small_base_temp,
+            "Small n should NOT include FFT memory overhead"
+        );
     }
 }

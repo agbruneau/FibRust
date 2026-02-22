@@ -1,5 +1,4 @@
 //! Memory estimation for FFT operations.
-#![allow(dead_code)] // Infrastructure: will be wired up for memory budget checks
 
 use crate::fermat::select_fft_params;
 
