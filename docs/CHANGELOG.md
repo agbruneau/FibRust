@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Performance**: Bump allocator (`bumpalo`) for FFT temporaries, thread-local BigInt pools, core affinity hints, and configurable FFT memory budget.
+- **GMP support**: `GmpCalculator` implementation via the `rug` crate behind the `gmp` feature flag, with dual-build CI support.
+- **Documentation**: Multi-platform installation guide (`docs/INSTALLATION.md`), README rewrite with Quick Start and clear install paths, `#![warn(missing_docs)]` lint with complete rustdoc coverage for `fibcalc-core`, `fibcalc-bigfft`, and `fibcalc-orchestration`.
+- **Metadata**: Workspace-level `repository`, `keywords`, and `categories` fields propagated to all 7 crate manifests.
+
 ### Changed
 
 - **Code quality**: Implemented comprehensive clippy pedantic lint compliance across all crates.

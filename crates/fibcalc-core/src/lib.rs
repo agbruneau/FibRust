@@ -2,6 +2,7 @@
 //!
 //! Core library for the FibCalc-rs high-performance Fibonacci calculator.
 //! Implements Fast Doubling, Matrix Exponentiation, and FFT-based algorithms.
+#![warn(missing_docs)]
 #![allow(clippy::similar_names)] // Mathematical variable names: fk, fk1, f2k, f2k1, fk_sq, fk1_sq
 
 pub(crate) mod arena;

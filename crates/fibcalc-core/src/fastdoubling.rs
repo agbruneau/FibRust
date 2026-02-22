@@ -20,10 +20,15 @@ use crate::progress::{CancellationToken, ProgressUpdate};
 
 /// State for the Fast Doubling computation, enabling pool reuse.
 pub struct CalculationState {
+    /// Current F(k).
     pub fk: BigUint,
+    /// Current F(k+1).
     pub fk1: BigUint,
+    /// Temporary register 1.
     pub t1: BigUint,
+    /// Temporary register 2.
     pub t2: BigUint,
+    /// Temporary register 3.
     pub t3: BigUint,
 }
 
@@ -99,6 +104,7 @@ fn tl_release_state(state: CalculationState) {
 pub struct OptimizedFastDoubling;
 
 impl OptimizedFastDoubling {
+    /// Create a new `OptimizedFastDoubling` calculator.
     #[must_use]
     pub fn new() -> Self {
         Self

@@ -1,6 +1,7 @@
 //! # fibcalc-orchestration
 //!
 //! Parallel execution, calculator selection, and result analysis.
+#![warn(missing_docs)]
 
 pub mod calculator_selection;
 pub mod interfaces;

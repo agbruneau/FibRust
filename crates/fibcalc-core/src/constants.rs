@@ -44,11 +44,17 @@ pub const FIB_TABLE: [u64; 94] = {
 
 /// Exit codes matching Go implementation.
 pub mod exit_codes {
+    /// Successful execution.
     pub const SUCCESS: i32 = 0;
+    /// Generic error.
     pub const ERROR_GENERIC: i32 = 1;
+    /// Computation timed out.
     pub const ERROR_TIMEOUT: i32 = 2;
+    /// Algorithm results did not match during cross-validation.
     pub const ERROR_MISMATCH: i32 = 3;
+    /// Invalid configuration.
     pub const ERROR_CONFIG: i32 = 4;
+    /// Computation cancelled by user (Ctrl+C).
     pub const ERROR_CANCELED: i32 = 130;
 }
 

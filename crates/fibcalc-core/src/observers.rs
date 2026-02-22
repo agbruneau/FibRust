@@ -105,6 +105,7 @@ impl ProgressObserver for LoggingObserver {
 pub struct NoOpObserver;
 
 impl NoOpObserver {
+    /// Create a new no-op observer that discards all progress updates.
     #[must_use]
     pub fn new() -> Self {
         Self

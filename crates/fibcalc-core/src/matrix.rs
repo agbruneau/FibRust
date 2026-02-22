@@ -1,6 +1,6 @@
 //! Matrix Exponentiation algorithm for Fibonacci computation.
 //!
-//! Computes F(n) via Q^n where Q = [[1,1],[1,0]].
+//! Computes F(n) via Q^n where Q = \[\[1,1\],\[1,0\]\].
 //! Uses binary exponentiation (square-and-multiply).
 //! Includes thread-local pooling of `MatrixState` objects.
 
@@ -43,6 +43,7 @@ fn tl_release_state(state: MatrixState) {
 pub struct MatrixExponentiation;
 
 impl MatrixExponentiation {
+    /// Create a new Matrix Exponentiation calculator.
     #[must_use]
     pub fn new() -> Self {
         Self

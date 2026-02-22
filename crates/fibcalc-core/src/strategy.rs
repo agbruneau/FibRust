@@ -40,6 +40,7 @@ pub trait DoublingStepExecutor: Multiplier {
 pub struct KaratsubaStrategy;
 
 impl KaratsubaStrategy {
+    /// Create a new Karatsuba multiplication strategy.
     #[must_use]
     pub fn new() -> Self {
         Self
@@ -76,6 +77,7 @@ pub struct ParallelKaratsubaStrategy {
 }
 
 impl ParallelKaratsubaStrategy {
+    /// Create a new parallel Karatsuba strategy with the given bit threshold.
     #[must_use]
     pub fn new(parallel_threshold: usize) -> Self {
         Self { parallel_threshold }
@@ -123,6 +125,7 @@ impl DoublingStepExecutor for ParallelKaratsubaStrategy {
 pub struct FFTOnlyStrategy;
 
 impl FFTOnlyStrategy {
+    /// Create a new FFT-only multiplication strategy.
     #[must_use]
     pub fn new() -> Self {
         Self
@@ -157,6 +160,7 @@ pub struct AdaptiveStrategy {
 }
 
 impl AdaptiveStrategy {
+    /// Create a new adaptive strategy that switches to FFT at the given bit threshold.
     #[must_use]
     pub fn new(fft_threshold: usize) -> Self {
         Self { fft_threshold }

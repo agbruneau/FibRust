@@ -2,6 +2,7 @@
 //!
 //! FFT-based big number multiplication using Fermat numbers.
 //! Port of the Go `internal/bigfft` package.
+#![warn(missing_docs)]
 // Crate-level #![allow(dead_code)] removed -- individual modules/items annotated instead
 
 pub mod allocator;
