@@ -34,7 +34,7 @@ num-traits = "0.2"
 num-integer = "0.1"
 
 # Optional GMP support
-rug = { version = "1.24" }
+rug = { version = "1.24", features = ["integer"] }
 
 # Concurrency
 rayon = "1.10"
