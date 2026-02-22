@@ -1,5 +1,4 @@
 //! Allocator trait and implementations.
-#![allow(dead_code)] // Infrastructure: will be wired up when pool-backed FFT paths are enabled
 
 use num_bigint::BigUint;
 
@@ -23,6 +22,12 @@ impl PoolAllocator {
         Self {
             pool: crate::pool::BigIntPool::default(),
         }
+    }
+
+    /// Return a snapshot of pool usage statistics.
+    #[must_use]
+    pub fn stats(&self) -> crate::pool::PoolStats {
+        self.pool.stats()
     }
 }
 

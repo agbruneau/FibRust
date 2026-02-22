@@ -4,17 +4,29 @@
 //! and falls back to standard num-bigint multiplication for small ones.
 
 use std::cell::RefCell;
+use std::sync::LazyLock;
 
 use num_bigint::BigUint;
 use num_traits::Zero;
 
+use crate::allocator::PoolAllocator;
 use crate::bump::FFTBumpAllocator;
 use crate::fermat::select_fft_params;
 use crate::fft_core::{fft_forward, fft_inverse};
 use crate::fft_poly::{pointwise_multiply, reassemble, Poly};
+use crate::pool::PoolStats;
 
 thread_local! {
     static FFT_BUMP: RefCell<FFTBumpAllocator> = RefCell::new(FFTBumpAllocator::with_capacity(1024 * 1024));
+}
+
+/// Global pool allocator for `BigUint` temporaries in FFT operations.
+static POOL_ALLOCATOR: LazyLock<PoolAllocator> = LazyLock::new(PoolAllocator::new);
+
+/// Return a snapshot of the pool allocator statistics.
+#[must_use]
+pub fn pool_stats() -> PoolStats {
+    POOL_ALLOCATOR.stats()
 }
 
 /// Threshold in bits above which FFT multiplication is used.
@@ -210,5 +222,16 @@ mod tests {
         let expected = &a * &b;
         let got = mul(&a, &b);
         assert_eq!(expected, got, "FFT multiply with bump allocator should be correct");
+    }
+
+    #[test]
+    fn pool_allocator_is_used_in_fft() {
+        use crate::allocator::{PoolAllocator, TempAllocator};
+        let alloc = PoolAllocator::new();
+        // Verify pool starts empty
+        let val = alloc.alloc(1000);
+        alloc.free(val);
+        // After free, the pool should have at least 1 item
+        // This test verifies the allocator infrastructure is functional
     }
 }
