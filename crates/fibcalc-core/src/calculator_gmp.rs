@@ -7,7 +7,7 @@
 #[cfg(feature = "gmp")]
 mod inner {
     use num_bigint::BigUint;
-    use rug::Integer;
+    use rug::{Assign, Integer};
 
     use crate::calculator::{CoreCalculator, FibError};
     use crate::observer::ProgressObserver;
