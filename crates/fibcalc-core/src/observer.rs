@@ -38,6 +38,7 @@ impl FrozenObserver {
     }
 
     /// Check if progress has changed enough to warrant reporting.
+    #[inline]
     #[must_use]
     pub fn should_report(&self, new_progress: f64) -> bool {
         let current = f64::from_bits(self.progress.load(Ordering::Relaxed));

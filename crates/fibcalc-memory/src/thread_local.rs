@@ -9,6 +9,7 @@ use std::cell::RefCell;
 ///
 /// If the pool has an object, it is popped and `reset` is called on it.
 /// Otherwise a new object is created via `factory`.
+#[inline]
 pub fn tl_acquire<T>(
     pool: &RefCell<Vec<T>>,
     factory: fn() -> T,
@@ -27,6 +28,7 @@ pub fn tl_acquire<T>(
 /// Return an object to a thread-local pool.
 ///
 /// If the pool has reached `max` capacity, the object is dropped.
+#[inline]
 pub fn tl_release<T>(pool: &RefCell<Vec<T>>, max: usize, item: T) {
     let mut pool = pool.borrow_mut();
     if pool.len() < max {
