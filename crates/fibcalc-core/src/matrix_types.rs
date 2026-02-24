@@ -4,7 +4,6 @@ use num_bigint::BigUint;
 
 /// 2x2 matrix of `BigUint` values.
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 pub struct Matrix {
     pub a: BigUint, // [0][0]
     pub b: BigUint, // [0][1]
