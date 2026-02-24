@@ -17,6 +17,7 @@ members = [
     "crates/fibcalc-cli",
     "crates/fibcalc-tui",
     "crates/fibcalc-calibration",
+    "crates/fibcalc-memory",
 ]
 
 [workspace.package]
@@ -85,6 +86,7 @@ fibcalc-orchestration = { path = "crates/fibcalc-orchestration" }
 fibcalc-cli = { path = "crates/fibcalc-cli" }
 fibcalc-tui = { path = "crates/fibcalc-tui" }
 fibcalc-calibration = { path = "crates/fibcalc-calibration" }
+fibcalc-memory = { path = "crates/fibcalc-memory" }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
