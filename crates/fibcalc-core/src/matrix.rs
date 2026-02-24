@@ -9,7 +9,6 @@ use std::cell::RefCell;
 use num_bigint::BigUint;
 
 use crate::calculator::{CoreCalculator, FibError};
-use crate::matrix_ops::{matrix_multiply, matrix_square};
 use crate::matrix_types::MatrixState;
 use crate::observer::ProgressObserver;
 use crate::options::Options;
@@ -70,11 +69,12 @@ impl MatrixExponentiation {
                 }
 
                 // Square the result
-                state.result = matrix_square(&state.result);
+                state.result.square_symmetric_into();
 
                 // Multiply by base if bit is set
                 if (n >> i) & 1 == 1 {
-                    state.result = matrix_multiply(&state.result, &state.base);
+                    let base_ref = &state.base;
+                    state.result.multiply_symmetric_into(base_ref);
                 }
 
                 // Progress reporting

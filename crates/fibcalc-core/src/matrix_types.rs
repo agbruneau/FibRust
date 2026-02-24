@@ -66,6 +66,20 @@ impl Matrix {
         }
     }
 
+    /// In-place squaring for symmetric matrices.
+    ///
+    /// Mutates `self` to contain `self * self`, reusing buffer capacity.
+    pub fn square_symmetric_into(&mut self) {
+        let b_sq = &self.b * &self.b;
+        let new_a = &self.a * &self.a + &b_sq;
+        let new_b = &self.b * (&self.a + &self.d);
+        let new_d = &b_sq + &self.d * &self.d;
+        self.a = new_a;
+        self.c.clone_from(&new_b);
+        self.b = new_b;
+        self.d = new_d;
+    }
+
     /// Optimized multiplication for symmetric Fibonacci matrices.
     ///
     /// For symmetric `A=[[a1,b1],[b1,d1]]` and `B=[[a2,b2],[b2,d2]]`:
@@ -83,6 +97,20 @@ impl Matrix {
             c: new_b,
             d: new_d,
         }
+    }
+
+    /// In-place multiplication for symmetric matrices.
+    ///
+    /// Mutates `self` to contain `self * other`, reusing buffer capacity.
+    pub fn multiply_symmetric_into(&mut self, other: &Self) {
+        let b1_b2 = &self.b * &other.b;
+        let new_a = &self.a * &other.a + &b1_b2;
+        let new_b = &self.a * &other.b + &self.b * &other.d;
+        let new_d = &b1_b2 + &self.d * &other.d;
+        self.a = new_a;
+        self.c.clone_from(&new_b);
+        self.b = new_b;
+        self.d = new_d;
     }
 }
 
@@ -132,6 +160,29 @@ mod tests {
         assert_eq!(q.b, BigUint::from(1u32));
         assert_eq!(q.c, BigUint::from(1u32));
         assert_eq!(q.d, BigUint::ZERO);
+    }
+
+    #[test]
+    fn square_symmetric_into_matches_immutable() {
+        let q = Matrix::fibonacci_q();
+        let expected = q.square_symmetric();
+        let mut m = q.clone();
+        m.square_symmetric_into();
+        assert_eq!(m.a, expected.a);
+        assert_eq!(m.b, expected.b);
+        assert_eq!(m.d, expected.d);
+    }
+
+    #[test]
+    fn multiply_symmetric_into_matches_immutable() {
+        let q = Matrix::fibonacci_q();
+        let q2 = q.square_symmetric();
+        let expected = q2.multiply_symmetric(&q);
+        let mut m = q2.clone();
+        m.multiply_symmetric_into(&q);
+        assert_eq!(m.a, expected.a);
+        assert_eq!(m.b, expected.b);
+        assert_eq!(m.d, expected.d);
     }
 
     #[test]

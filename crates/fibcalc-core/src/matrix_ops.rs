@@ -8,6 +8,7 @@ use crate::matrix_types::Matrix;
 /// (i.e., `b == c`), so we use `multiply_symmetric` which requires
 /// 5 multiplications instead of the standard 8.
 #[must_use]
+#[allow(dead_code)] // Used in tests; in-place variant used in hot loop
 pub fn matrix_multiply(a: &Matrix, b: &Matrix) -> Matrix {
     a.multiply_symmetric(b)
 }
@@ -16,6 +17,7 @@ pub fn matrix_multiply(a: &Matrix, b: &Matrix) -> Matrix {
 ///
 /// Uses `square_symmetric` which requires 3 multiplications instead of 8.
 #[must_use]
+#[allow(dead_code)] // Used in tests; in-place variant used in hot loop
 pub fn matrix_square(m: &Matrix) -> Matrix {
     m.square_symmetric()
 }
