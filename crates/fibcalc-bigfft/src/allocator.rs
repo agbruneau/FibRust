@@ -30,6 +30,11 @@ impl PoolAllocator {
     pub fn stats(&self) -> crate::pool::PoolStats {
         self.pool.stats()
     }
+
+    /// Warm the internal pool for computing F(n).
+    pub fn warm(&self, n: u64) {
+        crate::pool_warming::warm_pool_default(&self.pool, n);
+    }
 }
 
 impl Default for PoolAllocator {

@@ -29,6 +29,11 @@ pub fn pool_stats() -> PoolStats {
     POOL_ALLOCATOR.stats()
 }
 
+/// Warm the global pool for computing F(n).
+pub fn warm_global_pool(n: u64) {
+    POOL_ALLOCATOR.warm(n);
+}
+
 /// Threshold in bits above which FFT multiplication is used.
 const FFT_BIT_THRESHOLD: usize = 10_000;
 

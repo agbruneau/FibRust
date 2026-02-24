@@ -22,4 +22,5 @@ pub(crate) mod scan;
 // Re-exports
 pub use fft::{mul, mul_to, sqr, sqr_to};
 pub use fft::pool_stats;
+pub use fft::warm_global_pool;
 pub use memory_est::estimate_fft_memory;
