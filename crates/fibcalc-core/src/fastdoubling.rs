@@ -73,7 +73,6 @@ fn tl_acquire_state() -> CalculationState {
     CALC_STATE_POOL.with(|p| {
         pool::tl_acquire(
             p,
-            THREAD_LOCAL_POOL_MAX,
             CalculationState::new,
             CalculationState::reset,
         )
@@ -324,34 +323,6 @@ mod tests {
         state.reset();
         assert_eq!(state.fk, BigUint::ZERO);
         assert_eq!(state.fk1, BigUint::from(1u32));
-    }
-
-    #[test]
-    fn calculation_state_pool_acquire_release() {
-        let pool = pool::ObjectPool::<CalculationState>::new(2);
-        assert_eq!(pool.available(), 0);
-
-        let state = pool.acquire(CalculationState::new, CalculationState::reset);
-        assert_eq!(state.fk, BigUint::ZERO);
-        assert_eq!(state.fk1, BigUint::from(1u32));
-
-        pool.release(state);
-        assert_eq!(pool.available(), 1);
-
-        // Acquire returns the pooled state (reset)
-        let state2 = pool.acquire(CalculationState::new, CalculationState::reset);
-        assert_eq!(state2.fk, BigUint::ZERO);
-        assert_eq!(pool.available(), 0);
-    }
-
-    #[test]
-    fn calculation_state_pool_max_size() {
-        let pool = pool::ObjectPool::<CalculationState>::new(1);
-        let s1 = CalculationState::new();
-        let s2 = CalculationState::new();
-        pool.release(s1);
-        pool.release(s2); // Should be dropped, pool is full
-        assert_eq!(pool.available(), 1);
     }
 
     #[test]

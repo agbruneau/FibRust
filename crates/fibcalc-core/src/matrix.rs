@@ -27,7 +27,6 @@ fn tl_acquire_state() -> MatrixState {
     MATRIX_STATE_POOL.with(|p| {
         pool::tl_acquire(
             p,
-            THREAD_LOCAL_POOL_MAX,
             MatrixState::new,
             MatrixState::reset,
         )
@@ -179,33 +178,6 @@ mod tests {
         let opts = Options::default();
         let result = calc.calculate_core(&cancel, &observer, 0, 10000, &opts);
         assert!(matches!(result, Err(FibError::Cancelled)));
-    }
-
-    #[test]
-    fn matrix_state_pool_acquire_release() {
-        let pool = pool::ObjectPool::<MatrixState>::new(2);
-        assert_eq!(pool.available(), 0);
-
-        let state = pool.acquire(MatrixState::new, MatrixState::reset);
-        assert!(state.result.is_identity());
-
-        pool.release(state);
-        assert_eq!(pool.available(), 1);
-
-        // Acquire returns the pooled state (reset)
-        let state2 = pool.acquire(MatrixState::new, MatrixState::reset);
-        assert!(state2.result.is_identity());
-        assert_eq!(pool.available(), 0);
-    }
-
-    #[test]
-    fn matrix_state_pool_max_size() {
-        let pool = pool::ObjectPool::<MatrixState>::new(1);
-        let s1 = MatrixState::new();
-        let s2 = MatrixState::new();
-        pool.release(s1);
-        pool.release(s2); // Should be dropped, pool is full
-        assert_eq!(pool.available(), 1);
     }
 
     #[test]
