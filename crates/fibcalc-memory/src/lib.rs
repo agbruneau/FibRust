@@ -1,8 +1,8 @@
 //! # fibcalc-memory
 //!
-//! Unified memory management for the FibCalc workspace.
+//! Unified memory management for the `FibCalc` workspace.
 //!
-//! Provides BigUint pooling with size classes, bump arenas for FFT temporaries,
+//! Provides `BigUint` pooling with size classes, bump arenas for FFT temporaries,
 //! generic thread-local object pools, and pool warming strategies.
 #![warn(missing_docs)]
 

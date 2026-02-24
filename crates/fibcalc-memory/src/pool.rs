@@ -1,4 +1,4 @@
-//! BigInt pool with size classes for object reuse.
+//! `BigInt` pool with size classes for object reuse.
 
 use std::collections::HashMap;
 
