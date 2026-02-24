@@ -4,19 +4,20 @@ Calculateur Fibonacci haute performance en Rust. Prototype académique exploitan
 
 ## Projet
 
-- **Workspace** : 7 crates Cargo
+- **Workspace** : 8 crates Cargo
 - **Rust** : 1.80+ (MSRV), édition 2021
 - **Licence** : Apache 2.0
 - **Taille** : ~14 000 lignes, 669+ tests, 96.1% couverture
 - **Unsafe** : `unsafe_code = "forbid"` au niveau workspace
 
-## Architecture (4 couches, 7 crates)
+## Architecture (4 couches, 8 crates)
 
 ```
 crates/
   fibcalc/              # Binaire : CLI parsing, dispatch, signal handling (clap)
   fibcalc-core/         # CŒUR : algorithmes, traits, stratégies, observers, registre
   fibcalc-bigfft/       # Multiplication FFT, nombres de Fermat, cache, allocateur
+  fibcalc-memory/       # Gestion mémoire unifiée : pools BigInt, arènes bump, pools thread-local
   fibcalc-orchestration/ # Exécution parallèle, sélection calculateur, analyse
   fibcalc-calibration/  # Auto-tuning adaptatif, micro-benchmarks, profils
   fibcalc-cli/          # Présentation CLI, barres de progression, complétion shell
@@ -36,7 +37,7 @@ fuzz/                   # Cibles libfuzzer
 | Parallélisme | `rayon` (work-stealing), `crossbeam` (channels) |
 | CLI | `clap` (derive mode) + `clap_complete` |
 | TUI | `ratatui` 0.29 + `crossterm` 0.28 |
-| Allocation | `bumpalo` (arena, active in FFT), thread-local pool allocator (active) |
+| Allocation | `fibcalc-memory` (pools BigInt, arènes bump, pools thread-local, pré-chauffage) |
 | CPU affinity | `core_affinity` 0.8 (core pinning dans `fibcalc`) |
 | Synchro | `parking_lot` 0.12 |
 | Logging | `tracing` + `tracing-subscriber` |

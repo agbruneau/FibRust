@@ -19,7 +19,7 @@ This document describes the internal architecture of FibCalc-rs, a high-performa
 
 ## High-Level Overview
 
-FibCalc-rs is a Cargo workspace of 7 crates (Rust 2021 edition, MSRV 1.80+) that implements three Fibonacci algorithms -- Fast Doubling, Matrix Exponentiation, and FFT-Based -- with CLI and TUI presentation modes, automatic calibration of algorithm thresholds, and cooperative cancellation.
+FibCalc-rs is a Cargo workspace of 8 crates (Rust 2021 edition, MSRV 1.80+) that implements three Fibonacci algorithms -- Fast Doubling, Matrix Exponentiation, and FFT-Based -- with CLI and TUI presentation modes, automatic calibration of algorithm thresholds, and cooperative cancellation.
 
 ```
                        +-------------------+
@@ -60,7 +60,7 @@ FibCalc-rs is a Cargo workspace of 7 crates (Rust 2021 edition, MSRV 1.80+) that
 | Parallelism | `rayon` (work-stealing), `crossbeam` (channels) |
 | CLI | `clap` (derive mode) + `clap_complete` |
 | TUI | `ratatui` + `crossterm` |
-| Allocation | `bumpalo` (arena), thread-local pools |
+| Allocation | `fibcalc-memory` (BigInt pools, bump arenas, thread-local pools, warming) |
 | Synchronization | `parking_lot` (fast `RwLock`/`Mutex`) |
 | Logging | `tracing` + `tracing-subscriber` |
 | Error handling | `thiserror` (library crates), `anyhow` (binary) |
@@ -86,6 +86,7 @@ graph TB
     subgraph "Layer 3: Core"
         core["fibcalc-core<br/>algorithms, traits, strategies"]
         bigfft["fibcalc-bigfft<br/>FFT multiplication"]
+        memory["fibcalc-memory<br/>pools, arenas, warming"]
     end
 
     subgraph "Layer 4: Presentation"
@@ -101,6 +102,8 @@ graph TB
     orch --> core
     calib --> core
     core --> bigfft
+    core --> memory
+    bigfft --> memory
     cli --> core
     cli --> orch
     tui --> core
@@ -159,7 +162,7 @@ The algorithmic heart of the system. Contains:
 - Observer pattern: `ProgressObserver`, `ProgressSubject`, `FrozenObserver`
 - Factory/Registry: `DefaultFactory` with `RwLock<HashMap>` cache
 - Configuration: `Options`, `constants`, `dynamic_threshold`
-- Memory management: `memory_budget`, `arena`
+- Memory management: `memory_budget`, delegates pool/arena to `fibcalc-memory`
 
 **Crate:** `crates/fibcalc-bigfft`
 
@@ -168,8 +171,16 @@ FFT-based big number multiplication, ported from Go's `internal/bigfft`:
 - Public API: `mul()`, `sqr()`, `mul_to()`, `sqr_to()`
 - Fermat number transform for modular arithmetic
 - Transform cache (`fft_cache`) for reusing precomputed roots
-- Bump allocator (`bump`) using `bumpalo` for FFT temporaries
-- Memory pool (`pool`) for `BigUint` recycling
+- Bump allocator and memory pool delegated to `fibcalc-memory`
+
+**Crate:** `crates/fibcalc-memory`
+
+Unified memory management for the workspace:
+
+- `BigIntPool`: Size-class-based `BigUint` recycling with atomic statistics
+- `BumpArena`: `bumpalo`-backed arena for FFT temporaries and typed allocations
+- `tl_acquire`/`tl_release`: Generic thread-local object pool functions
+- Pool warming: Pre-allocation strategies based on predicted computation sizes
 
 ### Layer 4: Presentation
 
@@ -196,13 +207,14 @@ Interactive TUI dashboard using the Elm architecture:
 
 ## Workspace Crate Map
 
-### 7 Crates with Inter-Crate Dependencies
+### 8 Crates with Inter-Crate Dependencies
 
 | Crate | Type | Depends On |
 |-------|------|-----------|
 | `fibcalc` | bin | `fibcalc-core`, `fibcalc-orchestration`, `fibcalc-cli`, `fibcalc-tui`, `fibcalc-calibration` |
-| `fibcalc-core` | lib | `fibcalc-bigfft` |
-| `fibcalc-bigfft` | lib | (none -- leaf crate) |
+| `fibcalc-core` | lib | `fibcalc-bigfft`, `fibcalc-memory` |
+| `fibcalc-bigfft` | lib | `fibcalc-memory` |
+| `fibcalc-memory` | lib | (none -- leaf crate) |
 | `fibcalc-orchestration` | lib | `fibcalc-core` |
 | `fibcalc-cli` | lib | `fibcalc-core`, `fibcalc-orchestration` |
 | `fibcalc-tui` | lib | `fibcalc-core`, `fibcalc-orchestration` |
@@ -216,6 +228,8 @@ graph LR
     fibcalc --> fibcalc-tui
     fibcalc --> fibcalc-calibration
     fibcalc-core --> fibcalc-bigfft
+    fibcalc-core --> fibcalc-memory
+    fibcalc-bigfft --> fibcalc-memory
     fibcalc-orchestration --> fibcalc-core
     fibcalc-cli --> fibcalc-core
     fibcalc-cli --> fibcalc-orchestration
@@ -462,7 +476,7 @@ The `FrozenObserver` avoids lock contention in the inner loop of algorithm compu
 
 ### 5. Arena Allocation
 
-`bumpalo::Bump` arenas are used in `fibcalc-bigfft` for FFT temporaries. The arena allocates memory linearly and frees everything at once when dropped, avoiding individual deallocation overhead during the many small allocations in FFT butterfly operations.
+`BumpArena` (in `fibcalc-memory`) wraps `bumpalo::Bump` for FFT temporaries. The arena allocates memory linearly and frees everything at once when dropped, avoiding individual deallocation overhead during the many small allocations in FFT butterfly operations. Both `fibcalc-core` and `fibcalc-bigfft` consume it via re-exports.
 
 ### 6. Zero-Copy Result Return
 
@@ -480,15 +494,17 @@ Ok(std::mem::take(&mut state.fk))
 
 ### 7. Thread-Local Object Pooling
 
-`OptimizedFastDoubling` uses thread-local pools for `CalculationState` objects:
+`OptimizedFastDoubling` and `MatrixExponentiation` use thread-local pools for state objects via `fibcalc-memory`'s generic `tl_acquire`/`tl_release` functions:
 
 ```rust
 thread_local! {
     static CALC_STATE_POOL: RefCell<Vec<CalculationState>> = const { RefCell::new(Vec::new()) };
 }
+// Acquire from pool (or create new), reset, use, then release back
+let state = pool::tl_acquire(&pool, CalculationState::new, CalculationState::reset);
 ```
 
-States are acquired before computation and returned afterward, avoiding repeated allocation of the five `BigUint` temporaries (fk, fk1, t1, t2, t3). A `CalculationStatePool` with `parking_lot::Mutex` is also available for cross-thread pooling via Rayon work-stealing.
+States are acquired before computation and returned afterward, avoiding repeated allocation of the `BigUint` temporaries.
 
 ---
 
@@ -660,12 +676,12 @@ If a `--memory-limit` is set, the estimate is checked against the limit before p
 
 ### Allocation Strategies
 
-| Allocation Strategy | Where Used | Purpose |
-|-------------------|------------|---------|
-| Thread-local `Vec<CalculationState>` pool | `OptimizedFastDoubling` | Reuse BigUint temporaries across computations |
-| `CalculationStatePool` (Mutex-protected) | Cross-thread pooling | Rayon work-stealing compatible |
-| `bumpalo::Bump` arena | `fibcalc-bigfft` | Bulk allocation/deallocation for FFT temporaries |
-| `BigUint` pools (`fibcalc-bigfft/pool`) | FFT multiplication | Recycle large BigUint buffers |
+| Allocation Strategy | Where Used | Source |
+|-------------------|------------|--------|
+| Thread-local object pools (`tl_acquire`/`tl_release`) | `OptimizedFastDoubling`, `MatrixExponentiation` | `fibcalc-memory::thread_local` |
+| `BumpArena` (bumpalo wrapper) | FFT temporaries, typed allocations | `fibcalc-memory::arena` |
+| `BigIntPool` (size-class pools with atomic stats) | FFT multiplication, `BigUint` recycling | `fibcalc-memory::pool` |
+| Pool warming (pre-allocation by predicted size) | FFT pool via `warm_global_pool(n)` | `fibcalc-memory::warming` |
 | Stack allocation | Small intermediates | Preferred for values that do not escape |
 
 ### Zero-Copy Techniques

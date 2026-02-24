@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Memory**: New `fibcalc-memory` crate consolidating all allocation infrastructure (BigInt pools, bump arenas, thread-local pools, pool warming).
+- **Performance**: In-place matrix operations (`square_symmetric_into`, `multiply_symmetric_into`) for reduced allocation in exponentiation loop.
+- **Performance**: Conservative `#[inline]` annotations on hot-path pool and observer functions.
+- **Infrastructure**: Exposed `warm_global_pool(n)` for pre-warming FFT BigInt pool.
 - **Performance**: Bump allocator (`bumpalo`) for FFT temporaries, thread-local BigInt pools, core affinity hints, and configurable FFT memory budget.
 - **GMP support**: `GmpCalculator` implementation via the `rug` crate behind the `gmp` feature flag, with dual-build CI support.
 - **Documentation**: Multi-platform installation guide (`docs/INSTALLATION.md`), README rewrite with Quick Start and clear install paths, `#![warn(missing_docs)]` lint with complete rustdoc coverage for `fibcalc-core`, `fibcalc-bigfft`, and `fibcalc-orchestration`.
@@ -16,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Architecture**: `fibcalc-core` and `fibcalc-bigfft` now delegate pool/arena management to `fibcalc-memory` via re-exports.
+- **Code quality**: Removed dead code markers from activated Phase 2 infrastructure.
 - **Code quality**: Implemented comprehensive clippy pedantic lint compliance across all crates.
   - Added `# Errors` documentation sections to all public fallible functions.
   - Added `# Panics` documentation to functions that can panic.

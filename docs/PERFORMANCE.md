@@ -290,7 +290,7 @@ The computation will refuse to start if the estimated memory exceeds the limit.
 
 ### BigInt Pool
 
-The `BigIntPool` in `fibcalc-bigfft` reuses `BigUint` allocations to reduce allocation pressure:
+The `BigIntPool` in `fibcalc-memory` (re-exported by `fibcalc-bigfft`) reuses `BigUint` allocations to reduce allocation pressure:
 
 - **Size classes**: Organized by powers of 4 (64, 256, 1024, 4096, ...). An acquired value is drawn from the matching or next-higher size class.
 - **Max pooled bit length**: 100,000,000 bits. Values larger than this are not pooled.
@@ -307,7 +307,7 @@ Pool lifecycle:
 
 ### Pool Warming
 
-The `pool_warming` module pre-allocates pool entries based on predicted computation sizes:
+The `warming` module in `fibcalc-memory` (exposed via `fibcalc_bigfft::warm_global_pool(n)`) pre-allocates pool entries based on predicted computation sizes:
 
 | N Range | Strategy | Allocations |
 |---------|----------|-------------|
@@ -318,11 +318,15 @@ The `pool_warming` module pre-allocates pool entries based on predicted computat
 
 ### Arena Allocation
 
-The `CalculationArena` in `fibcalc-core` wraps `bumpalo::Bump` for O(1) allocation of FFT temporaries:
+The `BumpArena` in `fibcalc-memory` (re-exported as `CalculationArena` in core and `FFTBumpAllocator` in bigfft) wraps `bumpalo::Bump` for O(1) allocation of FFT temporaries:
 
 - All temporaries are allocated in a contiguous arena.
 - A single `reset()` call frees all temporaries at once instead of individual deallocations.
 - Pre-size the arena with `with_capacity(bytes)` to avoid resizing during computation.
+
+### In-Place Matrix Operations
+
+`MatrixExponentiation` uses in-place `square_symmetric_into()` and `multiply_symmetric_into()` methods that mutate the matrix directly, avoiding allocation of new `Matrix` structs in the exponentiation hot loop.
 
 ---
 

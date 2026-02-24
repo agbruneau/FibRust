@@ -58,7 +58,7 @@ fibcalc -n 10000000 --last-digits 100 -c
 
 ## Architecture
 
-Cargo workspace with 7 crates in a four-layer architecture:
+Cargo workspace with 8 crates in a four-layer architecture:
 
 ```
 fibcalc (binary)              -- CLI entry point, config, error handling
@@ -66,6 +66,8 @@ fibcalc (binary)              -- CLI entry point, config, error handling
 fibcalc-orchestration         -- parallel execution, result aggregation
     |
 fibcalc-core + fibcalc-bigfft -- algorithms, FFT multiplication
+    |            |
+fibcalc-memory                -- unified memory: pools, arenas, warming
     |
 fibcalc-cli / fibcalc-tui     -- CLI output / TUI dashboard
 fibcalc-calibration            -- auto-tuning, adaptive benchmarks
@@ -76,6 +78,7 @@ fibcalc-calibration            -- auto-tuning, adaptive benchmarks
 | `fibcalc`               | Binary entry point, clap config, error handling      |
 | `fibcalc-core`          | Fibonacci algorithms, strategies, observers, traits  |
 | `fibcalc-bigfft`        | FFT multiplication, Fermat numbers, bump allocator   |
+| `fibcalc-memory`        | Unified memory: BigInt pools, bump arenas, thread-local pools, warming |
 | `fibcalc-orchestration` | Parallel execution, calculator selection, analysis   |
 | `fibcalc-cli`           | CLI output, progress bars, shell completion          |
 | `fibcalc-tui`           | Interactive TUI dashboard (ratatui, Elm MVU)         |
@@ -116,7 +119,7 @@ cargo test --test golden              # Golden file tests
 cargo test --test e2e                 # End-to-end CLI tests
 ```
 
-**96.1% line coverage** across 7 crates. Test types: unit, golden file, property-based (`proptest`), end-to-end (`assert_cmd`), fuzz (`cargo-fuzz`), and benchmarks (`criterion`).
+**96.1% line coverage** across 8 crates. Test types: unit, golden file, property-based (`proptest`), end-to-end (`assert_cmd`), fuzz (`cargo-fuzz`), and benchmarks (`criterion`).
 
 ## Features
 
@@ -136,7 +139,7 @@ cargo test --test e2e                 # End-to-end CLI tests
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Four-layer architecture, traits, crate dependencies |
 | [ALGORITHMS.md](docs/ALGORITHMS.md) | Mathematical foundations, proofs, complexity analysis |
 | [PERFORMANCE.md](docs/PERFORMANCE.md) | Benchmarks, calibration, profiling |
-| [API_REFERENCE.md](docs/API_REFERENCE.md) | Public API for all 7 crates |
+| [API_REFERENCE.md](docs/API_REFERENCE.md) | Public API for all 8 crates |
 | [CONTRIBUTING.md](docs/CONTRIBUTING.md) | Dev setup, code style, PR process |
 | [CHANGELOG.md](docs/CHANGELOG.md) | Release history |
 
