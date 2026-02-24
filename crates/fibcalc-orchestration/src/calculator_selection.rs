@@ -39,7 +39,25 @@ mod tests {
     fn select_all() {
         let factory = DefaultFactory::new();
         let calcs = get_calculators_to_run("all", &factory).unwrap();
-        assert_eq!(calcs.len(), 3);
+
+        #[cfg(not(feature = "gmp"))]
+        let expected_count = 3;
+
+        // If the workspace feature "gmp" is enabled, fibcalc-core/gmp is enabled too.
+        // However, this test crate (fibcalc-orchestration) doesn't directly expose a "gmp" feature flag
+        // in its Cargo.toml that propagates to fibcalc-core.
+        // Instead, we check if the underlying factory reports GMP.
+        #[cfg(feature = "gmp")]
+        let expected_count = 4;
+
+        // Fallback check if feature flag isn't reliable in test context (e.g. unified workspace features)
+        let actual_expected = if factory.available().contains(&"gmp") {
+            4
+        } else {
+            3
+        };
+
+        assert_eq!(calcs.len(), actual_expected);
     }
 
     #[test]
