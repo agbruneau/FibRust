@@ -9,6 +9,7 @@
 
 use std::cell::RefCell;
 
+use fibcalc_bigfft::{mul, sqr};
 use num_bigint::BigUint;
 use num_traits::{One, Zero};
 
@@ -141,19 +142,56 @@ impl OptimizedFastDoubling {
                 state.t1 -= &state.fk;
 
                 let max_bits = state.fk.bits().max(state.fk1.bits()) as usize;
+                let use_fft = max_bits >= opts.fft_threshold;
 
                 let (f2k, f2k1) = if max_bits >= opts.parallel_threshold {
                     // Parallel: multiply and 2 squarings concurrently
                     let ((fk_sq, fk1_sq), f2k) = rayon::join(
-                        || rayon::join(|| &state.fk * &state.fk, || &state.fk1 * &state.fk1),
-                        || &state.fk * &state.t1,
+                        || {
+                            rayon::join(
+                                || {
+                                    if use_fft {
+                                        sqr(&state.fk)
+                                    } else {
+                                        &state.fk * &state.fk
+                                    }
+                                },
+                                || {
+                                    if use_fft {
+                                        sqr(&state.fk1)
+                                    } else {
+                                        &state.fk1 * &state.fk1
+                                    }
+                                },
+                            )
+                        },
+                        || {
+                            if use_fft {
+                                mul(&state.fk, &state.t1)
+                            } else {
+                                &state.fk * &state.t1
+                            }
+                        },
                     );
                     (f2k, fk_sq + fk1_sq)
                 } else {
                     // Sequential for small operands
-                    let f2k = &state.fk * &state.t1;
-                    let f2k1 = (&state.fk * &state.fk) + (&state.fk1 * &state.fk1);
-                    (f2k, f2k1)
+                    let f2k = if use_fft {
+                        mul(&state.fk, &state.t1)
+                    } else {
+                        &state.fk * &state.t1
+                    };
+                    let fk_sq = if use_fft {
+                        sqr(&state.fk)
+                    } else {
+                        &state.fk * &state.fk
+                    };
+                    let fk1_sq = if use_fft {
+                        sqr(&state.fk1)
+                    } else {
+                        &state.fk1 * &state.fk1
+                    };
+                    (f2k, fk_sq + fk1_sq)
                 };
 
                 state.fk = f2k;

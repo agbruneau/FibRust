@@ -4,7 +4,7 @@
 pub const DEFAULT_PARALLEL_THRESHOLD: usize = 4096;
 
 /// Default threshold (in bits) for FFT multiplication.
-pub const DEFAULT_FFT_THRESHOLD: usize = 500_000;
+pub const DEFAULT_FFT_THRESHOLD: usize = 20_000_000;
 
 /// Default threshold (in bits) for Strassen multiplication.
 pub const DEFAULT_STRASSEN_THRESHOLD: usize = 3072;
